@@ -18,9 +18,7 @@ function ProgramList({ programs }: { programs: ProgramOverviewViewModel[] }) {
   return (
     <div className="border border-gray-100 rounded-lg overflow-hidden">
       <div className="bg-brand-near-white px-3 py-1.5 border-b border-gray-100 flex items-center justify-between">
-        <span className="text-xs font-semibold text-brand-gray-dark uppercase tracking-wide">
-          Programs
-        </span>
+        <span className="text-xs font-semibold text-brand-gray-dark uppercase tracking-wide">Programs</span>
         <span className="text-xs text-brand-gray-mid font-medium">{programs.length}</span>
       </div>
       <div className="max-h-48 overflow-y-auto divide-y divide-gray-50">
@@ -83,13 +81,18 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
     return () => window.removeEventListener('oauth-callback', handler)
   }, [oauthState, pendingClientId, pendingClientSecret, onConnected])
 
-  const handleSourceChange = (mode: SourceMode) => {
-    if (mode === sourceMode) return
+  // Clicking a source button is the primary action:
+  //   Mock  → connect immediately with fixture data
+  //   Cache → open folder picker, connect if valid cache found
+  //   Live  → show token form (user must enter credentials)
+  // If already connected, switching modes reloads to ensure clean state.
+  const handleSourceChange = async (mode: SourceMode) => {
+    if (testing) return
+    if (mode === sourceMode && !isConnected) return
     setError(null)
     setBearerInput('')
 
     if (isConnected) {
-      // Switching while connected — clear everything and reload
       setMockMode(false)
       setCacheMode(false)
       clearToken()
@@ -101,43 +104,43 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
       return
     }
 
+    const prevMode = sourceMode
     setSourceMode(mode)
     setLiveStep('token')
-  }
 
-  const handleUseMock = async () => {
-    setMockMode(true)
-    setTesting(true)
-    setError(null)
-    try {
-      await onConnected()
-    } catch (e) {
-      setError(String(e))
-      setMockMode(false)
-    } finally {
-      setTesting(false)
-    }
-  }
-
-  const handleSelectCacheFolder = async () => {
-    setError(null)
-    setTesting(true)
-    try {
-      await requestCacheFolder()
-      // Verify the folder has programs data before connecting
-      const programs = await readFromCache<unknown[]>('programs', 'global')
-      if (!programs || programs.length === 0) {
-        throw new Error('No cached programs found in this folder. Run the app in Live API mode first to populate the cache.')
-      }
-      setCacheMode(true)
-      await onConnected()
-    } catch (e) {
-      if ((e as Error).name !== 'AbortError') {
+    if (mode === 'mock') {
+      setTesting(true)
+      try {
+        setMockMode(true)
+        await onConnected()
+      } catch (e) {
         setError(String(e))
+        setMockMode(false)
+        setSourceMode(prevMode)
+      } finally {
+        setTesting(false)
       }
-    } finally {
-      setTesting(false)
+    } else if (mode === 'cache') {
+      setTesting(true)
+      try {
+        await requestCacheFolder()
+        const progs = await readFromCache<unknown[]>('programs', 'global')
+        if (!progs || progs.length === 0) {
+          throw new Error('No cached programs found in this folder. Connect via Live API first to populate the cache.')
+        }
+        setCacheMode(true)
+        await onConnected()
+      } catch (e) {
+        if ((e as Error).name === 'AbortError') {
+          setSourceMode(prevMode) // user cancelled picker — revert
+        } else {
+          setError(String(e))
+        }
+      } finally {
+        setTesting(false)
+      }
     }
+    // 'live': just shows the token form
   }
 
   const handleValidateToken = async () => {
@@ -190,113 +193,90 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
   const connectedViaCache = isConnected && getCacheMode()
   const connectedViaLive = isConnected && !getMockMode() && !getCacheMode()
 
-  const SOURCE_LABELS: Record<SourceMode, string> = {
-    mock: 'Mock Data',
-    cache: 'Local Cache',
-    live: 'Live API',
-  }
+  const activeMode: SourceMode = connectedViaMock ? 'mock' : connectedViaCache ? 'cache' : connectedViaLive ? 'live' : sourceMode
+
+  const SOURCE_LABELS: Record<SourceMode, string> = { mock: 'Mock Data', cache: 'Local Cache', live: 'Live API' }
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm" data-no-print>
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-heading font-semibold text-gray-900 text-base">Data Source</h2>
         {onClose && (
-          <button
-            onClick={onClose}
-            className="text-xs text-brand-gray-mid hover:text-gray-700 transition-colors"
-          >
+          <button onClick={onClose} className="text-xs text-brand-gray-mid hover:text-gray-700 transition-colors">
             Hide
           </button>
         )}
       </div>
 
-      {/* Data source toggle */}
+      {/* Source selector — clicking is the action */}
       <div className="mb-4">
         <p className="text-xs text-brand-gray-mid mb-1.5 font-medium uppercase tracking-wide">Source</p>
         <div className="flex gap-2">
-          {(['mock', 'cache', 'live'] as SourceMode[]).map((mode) => {
-            const active = isConnected
-              ? (mode === 'mock' ? connectedViaMock : mode === 'cache' ? connectedViaCache : connectedViaLive)
-              : sourceMode === mode
-            return (
-              <button
-                key={mode}
-                onClick={() => handleSourceChange(mode)}
-                className={`px-3 py-1.5 rounded-md text-sm font-semibold transition-colors ${
-                  active
-                    ? 'bg-brand-navy text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                {SOURCE_LABELS[mode]}
-              </button>
-            )
-          })}
+          {(['mock', 'cache', 'live'] as SourceMode[]).map((mode) => (
+            <button
+              key={mode}
+              onClick={() => handleSourceChange(mode)}
+              disabled={testing}
+              className={`px-3 py-1.5 rounded-md text-sm font-semibold transition-colors disabled:opacity-50 ${
+                activeMode === mode
+                  ? 'bg-brand-navy text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              {SOURCE_LABELS[mode]}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Mock: not connected */}
-      {sourceMode === 'mock' && !isConnected && (
-        <div className="space-y-3">
-          <p className="text-xs text-brand-gray-mid">
-            Use built-in sample reports with realistic fixture data. No API key or Intigriti account required.
-          </p>
-          <button
-            onClick={handleUseMock}
-            disabled={testing}
-            className="px-4 py-2 bg-brand-navy text-white rounded-lg text-sm font-semibold hover:bg-brand-navy-light disabled:opacity-50 transition-colors"
-          >
-            {testing ? 'Connecting…' : 'Use Sample Data →'}
-          </button>
-        </div>
-      )}
-
-      {/* Mock: connected */}
+      {/* Connected states */}
       {connectedViaMock && (
         <div className="space-y-3">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 text-green-700 text-sm font-semibold">
-              <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
-              Connected — sample data
-            </div>
-            <button onClick={handleClear} className="text-xs text-brand-red hover:text-red-700 ml-4">Disconnect</button>
+          <div className="flex items-center gap-2 text-green-700 text-sm font-semibold">
+            <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
+            Connected — sample data
+            <button onClick={handleClear} className="text-xs text-brand-red hover:text-red-700 ml-3 font-normal">Disconnect</button>
           </div>
           <ProgramList programs={programs} />
         </div>
       )}
 
-      {/* Local Cache: not connected */}
-      {sourceMode === 'cache' && !isConnected && (
-        <div className="space-y-3">
-          <p className="text-xs text-brand-gray-mid">
-            Load from a folder of previously cached Intigriti data. No API token required. Run the app in Live API mode first to populate the cache.
-          </p>
-          <button
-            onClick={handleSelectCacheFolder}
-            disabled={testing}
-            className="px-4 py-2 bg-brand-navy text-white rounded-lg text-sm font-semibold hover:bg-brand-navy-light disabled:opacity-50 transition-colors"
-          >
-            {testing ? 'Loading…' : 'Select cache folder…'}
-          </button>
-        </div>
-      )}
-
-      {/* Local Cache: connected */}
       {connectedViaCache && (
         <div className="space-y-3">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 text-green-700 text-sm font-semibold">
-              <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
-              Connected — local cache
-            </div>
-            <button onClick={handleClear} className="text-xs text-brand-red hover:text-red-700 ml-4">Disconnect</button>
+          <div className="flex items-center gap-2 text-green-700 text-sm font-semibold">
+            <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
+            Connected — local cache
+            <button onClick={handleClear} className="text-xs text-brand-red hover:text-red-700 ml-3 font-normal">Disconnect</button>
           </div>
           <ProgramList programs={programs} />
         </div>
       )}
 
-      {/* Live API: not connected */}
-      {sourceMode === 'live' && !isConnected && (
+      {connectedViaLive && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 text-green-700 text-sm font-semibold">
+            <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
+            Connected
+            <button onClick={handleClear} className="text-xs text-brand-red hover:text-red-700 ml-3 font-normal">Disconnect</button>
+          </div>
+          <ProgramList programs={programs} />
+        </div>
+      )}
+
+      {/* Not-connected states */}
+      {!isConnected && sourceMode === 'mock' && (
+        <p className="text-xs text-brand-gray-mid">
+          {testing ? 'Connecting to sample data…' : 'Built-in fixture data with 8 realistic programs. No account required.'}
+        </p>
+      )}
+
+      {!isConnected && sourceMode === 'cache' && (
+        <p className="text-xs text-brand-gray-mid">
+          {testing ? 'Opening folder…' : 'Select a folder from a previous session. Run in Live API mode first to populate the cache.'}
+        </p>
+      )}
+
+      {!isConnected && sourceMode === 'live' && (
         <div className="space-y-3">
           <p className="text-xs text-brand-gray-mid">
             An API token from your Intigriti admin panel is required to access your live data.
@@ -389,20 +369,6 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
               </div>
             </>
           )}
-        </div>
-      )}
-
-      {/* Live API: connected */}
-      {connectedViaLive && (
-        <div>
-          <div className="flex items-center gap-3 mb-3">
-            <div className="flex items-center gap-2 text-green-700 text-sm font-semibold">
-              <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
-              Connected
-            </div>
-            <button onClick={handleClear} className="text-xs text-brand-red hover:text-red-700 ml-4">Disconnect</button>
-          </div>
-          <ProgramList programs={programs} />
         </div>
       )}
 
