@@ -26,7 +26,7 @@ function jitter(n, pct = 0.25) {
 }
 
 // ── Timestamps ────────────────────────────────────────────────────────────────
-const NOW_TS = 1756684800 // 2025-09-01 00:00 UTC
+const NOW_TS = 1788220800 // 2026-09-01 00:00 UTC
 
 function monthStartTs(monthsAgo) {
   const d = new Date(NOW_TS * 1000)
@@ -150,9 +150,22 @@ const RESEARCHERS = Array.from({ length: 300 }, (_, i) => {
 
 // ── Program definitions ───────────────────────────────────────────────────────
 // Sizes: tiny, small, medium, large, x-large, xx-large
-// peakRate: current submissions/month
-// startRate: submissions/month when program launched
+// peakRate: submissions/month at peak
+// startRate: submissions/month at program launch
 // monthsSpan: how many months of history
+// endMonthsAgo: how many months before NOW_TS the program's most recent month falls
+//   0 = still active (ends at NOW_TS)
+//   N = program ended N months before NOW_TS
+//
+// Timelines (NOW_TS = Sep 2026):
+//   tiny-001:       Dec 2019 – Feb 2020     (ended, 3 mo)
+//   pixelpay-002:   Dec 2021 – Sep 2022     (ended, 10 mo)
+//   stream-003:     Jan 2023 – Aug 2024     (ended, 20 mo)
+//   cloudforge-004: Dec 2022 – Mar 2025     (ended, 28 mo)
+//   govsecure-005:  Jul 2022 – Jun 2025     (ended, 36 mo)
+//   nexbank-006:    Sep 2022 – Aug 2026     (very recent, 48 mo, spans all 2026)
+//   megashop-007:   Oct 2020 – Sep 2026     (active NOW, 72 mo, spans all 2026)
+//   quantum-008:    Oct 2016 – Sep 2026     (active NOW, 120 mo, spans all 2026)
 const PROGRAM_DEFS = [
   {
     id: 'prog-tiny-001',    handle: 'tinystartup-vdp',
@@ -161,7 +174,7 @@ const PROGRAM_DEFS = [
     typeId: 2, typeVal: 'VDP', isVdp: true,
     confId: 1, confVal: 'Public',
     budget: null,
-    monthsSpan: 3, peakRate: 38, startRate: 30,
+    monthsSpan: 3, endMonthsAgo: 79, peakRate: 38, startRate: 30,
   },
   {
     id: 'prog-pixelpay-002', handle: 'pixelpay-bb',
@@ -170,7 +183,7 @@ const PROGRAM_DEFS = [
     typeId: 1, typeVal: 'Bug Bounty', isVdp: false,
     confId: 2, confVal: 'Responsible Disclosure',
     budget: { total: 50000, spent: 22000, inValidation: 1500 },
-    monthsSpan: 10, peakRate: 62, startRate: 28,
+    monthsSpan: 10, endMonthsAgo: 48, peakRate: 62, startRate: 28,
   },
   {
     id: 'prog-stream-003',   handle: 'streamfusion-bb',
@@ -179,7 +192,7 @@ const PROGRAM_DEFS = [
     typeId: 1, typeVal: 'Bug Bounty', isVdp: false,
     confId: 2, confVal: 'Responsible Disclosure',
     budget: { total: 120000, spent: 58000, inValidation: 4000 },
-    monthsSpan: 20, peakRate: 88, startRate: 32,
+    monthsSpan: 20, endMonthsAgo: 25, peakRate: 88, startRate: 32,
   },
   {
     id: 'prog-cloudforge-004', handle: 'cloudforge-saas',
@@ -188,7 +201,7 @@ const PROGRAM_DEFS = [
     typeId: 1, typeVal: 'Bug Bounty', isVdp: false,
     confId: 2, confVal: 'Responsible Disclosure',
     budget: { total: 300000, spent: 148000, inValidation: 9000 },
-    monthsSpan: 28, peakRate: 118, startRate: 40,
+    monthsSpan: 28, endMonthsAgo: 18, peakRate: 118, startRate: 40,
   },
   {
     id: 'prog-govsecure-005', handle: 'govsecure-vdp',
@@ -197,7 +210,7 @@ const PROGRAM_DEFS = [
     typeId: 2, typeVal: 'VDP', isVdp: true,
     confId: 1, confVal: 'Public',
     budget: null,
-    monthsSpan: 36, peakRate: 152, startRate: 48,
+    monthsSpan: 36, endMonthsAgo: 15, peakRate: 152, startRate: 48,
   },
   {
     id: 'prog-nexbank-006',  handle: 'nexbank-financial',
@@ -206,7 +219,7 @@ const PROGRAM_DEFS = [
     typeId: 1, typeVal: 'Bug Bounty', isVdp: false,
     confId: 3, confVal: 'Private',
     budget: { total: 1000000, spent: 524000, inValidation: 38000 },
-    monthsSpan: 48, peakRate: 182, startRate: 52,
+    monthsSpan: 48, endMonthsAgo: 1, peakRate: 182, startRate: 52,
   },
   {
     id: 'prog-megashop-007', handle: 'megashop-global',
@@ -215,7 +228,7 @@ const PROGRAM_DEFS = [
     typeId: 1, typeVal: 'Bug Bounty', isVdp: false,
     confId: 2, confVal: 'Responsible Disclosure',
     budget: { total: 2500000, spent: 1620000, inValidation: 92000 },
-    monthsSpan: 72, peakRate: 238, startRate: 65,
+    monthsSpan: 72, endMonthsAgo: 0, peakRate: 238, startRate: 65,
   },
   {
     id: 'prog-quantum-008', handle: 'quantumcore-enterprise',
@@ -224,7 +237,7 @@ const PROGRAM_DEFS = [
     typeId: 1, typeVal: 'Bug Bounty', isVdp: false,
     confId: 3, confVal: 'Private',
     budget: { total: 8000000, spent: 5150000, inValidation: 295000 },
-    monthsSpan: 120, peakRate: 298, startRate: 32,
+    monthsSpan: 120, endMonthsAgo: 0, peakRate: 298, startRate: 32,
   },
 ]
 
@@ -321,7 +334,7 @@ function buildSubmissions() {
   for (const prog of PROGRAM_DEFS) {
     // monthIdx 0 = oldest, monthsSpan-1 = most recent
     for (let m = 0; m < prog.monthsSpan; m++) {
-      const monthsAgo = prog.monthsSpan - 1 - m
+      const monthsAgo = (prog.endMonthsAgo ?? 0) + prog.monthsSpan - 1 - m
       const rate = interpolateRate(m, prog.monthsSpan, prog.startRate, prog.peakRate)
       const count = jitter(rate, 0.22)
 
