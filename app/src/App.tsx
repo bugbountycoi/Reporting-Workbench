@@ -85,7 +85,6 @@ export default function App() {
       setPrograms(progs)
       setIsMockMode(getMockMode())
       setAppState('connected')
-      setPanelsOpen((p) => ({ ...p, api: false }))
 
       const saved = loadWorkbenchConfig()
       if (saved) {
@@ -264,7 +263,6 @@ export default function App() {
               <CacheFolderPanel
                 onFolderSelected={() => {
                   setCacheConfigured(true)
-                  setPanelsOpen((p) => ({ ...p, cache: false }))
                 }}
                 onClose={() => setPanelsOpen((p) => ({ ...p, cache: false }))}
               />
@@ -275,7 +273,6 @@ export default function App() {
               <EncryptionPanel
                 onConfigured={() => {
                   setEncryptionConfigured(true)
-                  setPanelsOpen((p) => ({ ...p, encryption: false }))
                 }}
                 onClose={() => setPanelsOpen((p) => ({ ...p, encryption: false }))}
               />
