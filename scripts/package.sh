@@ -130,6 +130,18 @@ exec node server.mjs
 STARTSCRIPT
 chmod +x "$STAGING/start.sh"
 
+cat > "$STAGING/start.bat" << 'STARTBAT'
+@echo off
+cd /d "%~dp0"
+node server.mjs
+pause
+STARTBAT
+
+cat > "$STAGING/start.ps1" << 'STARTPS1'
+Set-Location $PSScriptRoot
+node server.mjs
+STARTPS1
+
 # ── Create zip ─────────────────────────────────────────────────────────────────
 # Strip macOS metadata before zipping
 find "$STAGING" -name ".DS_Store" -delete
@@ -144,7 +156,9 @@ rm -rf "$OUT/_staging"
 echo "Package ready → dist/$ARCHIVE_NAME"
 echo ""
 echo "Contents:"
-echo "  start.sh        — launch the workbench"
+echo "  start.sh        — launch the workbench (macOS / Linux)"
+echo "  start.bat       — launch the workbench (Windows — double-click or CMD)"
+echo "  start.ps1       — launch the workbench (Windows PowerShell)"
 echo "  server.mjs      — standalone Node.js server (no npm install required)"
 echo "  dist/           — built app (live and mock modes)"
 echo "  README.md       — setup and usage guide"
