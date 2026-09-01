@@ -3,7 +3,9 @@ import { setToken, clearToken, enableLocalStorage, disableLocalStorage } from '.
 import { buildAuthUrl, exchangeCode, scheduleRefresh, cancelRefreshSchedule } from '../auth/oauth'
 import { getPrograms } from '../api/endpoints/programs'
 import { getMockMode, setMockMode, getCacheMode, setCacheMode } from '../config/api'
-import { requestCacheFolder, readFromCache } from '../cache/manager'
+import { requestCacheFolder, readFromCache, loadCacheIndex } from '../cache/manager'
+import { cacheConfig } from '../cache/cacheConfig'
+import { formatDistanceToNow } from 'date-fns'
 import type { ProgramOverviewViewModel } from '../api/types'
 
 type SourceMode = 'mock' | 'cache' | 'live'
@@ -64,6 +66,7 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
   const [localStorageEnabled, setLocalStorageEnabled] = useState(false)
   const [testing, setTesting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [cacheAge, setCacheAge] = useState<string | null>(null)
 
   useEffect(() => {
     const handler = async (e: Event) => {
@@ -128,6 +131,8 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
         if (!progs || progs.length === 0) {
           throw new Error('No cached programs found in this folder. Connect via Live API first to populate the cache.')
         }
+        const idx = await loadCacheIndex()
+        setCacheAge(idx[0]?.fetchedAt ?? null)
         setCacheMode(true)
         await onConnected()
       } catch (e) {
@@ -248,6 +253,11 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
             Connected — local cache
             <button onClick={handleClear} className="text-xs text-brand-red hover:text-red-700 ml-3 font-normal">Disconnect</button>
           </div>
+          {cacheAge && (
+            <p className="text-xs text-brand-gray-mid">
+              Most recent data: {formatDistanceToNow(new Date(cacheAge), { addSuffix: true })}
+            </p>
+          )}
           <ProgramList programs={programs} />
         </div>
       )}
@@ -259,6 +269,11 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
             Connected
             <button onClick={handleClear} className="text-xs text-brand-red hover:text-red-700 ml-3 font-normal">Disconnect</button>
           </div>
+          {!cacheConfig.folderSelected && (
+            <p className="text-xs text-brand-gray-mid border border-dashed border-gray-200 rounded-lg p-2">
+              Open <strong>Cache Folder</strong> settings to save fetched data locally for offline use.
+            </p>
+          )}
           <ProgramList programs={programs} />
         </div>
       )}
