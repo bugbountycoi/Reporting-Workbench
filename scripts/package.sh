@@ -70,6 +70,11 @@ fi
 need zip
 need node
 
+# Validate fixture data matches expected API shape before packaging
+echo "Validating fixture data..."
+node "$ROOT/scripts/validate-fixtures.js" || die "Fixture validation failed — fix errors above before releasing."
+echo ""
+
 VERSION="${2:-$(node -p "require('$APP/package.json').version" 2>/dev/null || date +%Y%m%d)}"
 STAMP="$(date +%Y%m%d)"
 ARCHIVE_NAME="intigriti-reporting-workbench-${VERSION}-${STAMP}.zip"
