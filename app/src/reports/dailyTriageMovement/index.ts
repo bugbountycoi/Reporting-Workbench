@@ -1,7 +1,7 @@
 import type { ReportModule, ReportData, ReportParams, ChartConfig } from '../types'
 import { getProgramSubmissions } from '../../api/endpoints/programs'
 import type { SubmissionOverviewViewModel } from '../../api/types'
-import { formatDate, startOfDay, eachDayOfInterval, isoToDate } from '../../utils/dates'
+import { bucketKey, allBuckets, INTERVAL_OPTIONS, type Interval } from '../../utils/intervals'
 import { sampleSubmissions } from './fixtures'
 
 const CHART_COLORS = {
@@ -13,35 +13,38 @@ const CHART_COLORS = {
 
 const COMPARE_COLORS = ['#4C59A8', '#02A87C', '#F03157', '#E0AC00', '#7BCFDB', '#E99C4A', '#575865']
 
-function buildDailyRows(submissions: SubmissionOverviewViewModel[], startDate: string, endDate: string) {
-  const start = startOfDay(isoToDate(startDate))
-  const end = startOfDay(isoToDate(endDate))
-  const days = eachDayOfInterval({ start, end })
+function buildRows(
+  submissions: SubmissionOverviewViewModel[],
+  startDate: string,
+  endDate: string,
+  interval: Interval,
+) {
+  const buckets = allBuckets(startDate, endDate, interval)
 
-  return days.map((day) => {
-    const dayStr = formatDate(day)
-    const dayStart = day.getTime() / 1000
-    const dayEnd = dayStart + 86399
+  const byBucket = new Map<string, SubmissionOverviewViewModel[]>()
+  for (const s of submissions) {
+    const k = bucketKey(s.createdAt, interval)
+    if (!byBucket.has(k)) byBucket.set(k, [])
+    byBucket.get(k)!.push(s)
+  }
 
-    const inRange = (s: SubmissionOverviewViewModel) =>
-      s.createdAt >= dayStart && s.createdAt <= dayEnd
-
-    const daySubmissions = submissions.filter(inRange)
-    const newCount = daySubmissions.length
-    const forwardedCount = daySubmissions.filter((s) =>
+  return buckets.map((bucket) => {
+    const inBucket = byBucket.get(bucket) ?? []
+    const newCount = inBucket.length
+    const forwardedCount = inBucket.filter((s) =>
       s.state.status.value.toLowerCase().includes('forwarded'),
     ).length
-    const duplicateCount = daySubmissions.filter(
+    const duplicateCount = inBucket.filter(
       (s) => s.state.closeReason?.value.toLowerCase() === 'duplicate',
     ).length
-    const closedCount = daySubmissions.filter(
+    const closedCount = inBucket.filter(
       (s) =>
         s.state.status.value.toLowerCase() === 'closed' &&
         !s.state.closeReason?.value.toLowerCase().includes('duplicate'),
     ).length
 
     return {
-      date: dayStr,
+      period: bucket,
       new: newCount,
       forwarded: forwardedCount,
       closed: closedCount,
@@ -55,6 +58,7 @@ function transformData(raw: unknown, params: ReportParams): ReportData {
   const submissions = raw as SubmissionOverviewViewModel[]
   const startDate = params.startDate ?? '2025-07-11'
   const endDate = params.endDate ?? '2025-07-28'
+  const interval = (params.interval as Interval | undefined) ?? 'day'
 
   const programIds = params.programIds ?? (params.programId ? [params.programId] : [])
   const viewMode = params.viewMode ?? 'combine'
@@ -64,7 +68,7 @@ function transformData(raw: unknown, params: ReportParams): ReportData {
       ? submissions.filter((s) => programIds.includes(s.originators.programId ?? ''))
       : submissions
 
-  const rows = buildDailyRows(filtered, startDate, endDate)
+  const rows = buildRows(filtered, startDate, endDate, interval)
   const totalNew = rows.reduce((sum, r) => sum + (r.new as number), 0)
   const totalClosed = rows.reduce((sum, r) => sum + (r.closed as number), 0)
   const netChange = rows.reduce((sum, r) => sum + (r.netChange as number), 0)
@@ -86,28 +90,32 @@ function transformData(raw: unknown, params: ReportParams): ReportData {
 
   if (viewMode === 'compare' && programIds.length > 1) {
     const programList = params.programs ?? []
-    const start = startOfDay(isoToDate(startDate))
-    const end = startOfDay(isoToDate(endDate))
-    const days = eachDayOfInterval({ start, end })
+    const buckets = allBuckets(startDate, endDate, interval)
 
-    const compareData = days.map((day) => {
-      const dayStr = formatDate(day)
-      const dayStart = day.getTime() / 1000
-      const dayEnd = dayStart + 86399
-      const row: Record<string, unknown> = { date: dayStr }
+    const byBucketByProg = new Map<string, Map<string, number>>()
+    for (const s of filtered) {
+      const k = bucketKey(s.createdAt, interval)
+      const pid = s.originators.programId ?? ''
+      if (!byBucketByProg.has(k)) byBucketByProg.set(k, new Map())
+      const m = byBucketByProg.get(k)!
+      m.set(pid, (m.get(pid) ?? 0) + 1)
+    }
+
+    const compareData = buckets.map((bucket) => {
+      const row: Record<string, unknown> = { period: bucket }
+      const bucketMap = byBucketByProg.get(bucket)
       for (const id of programIds) {
-        row[id] = filtered.filter(
-          (s) => (s.originators.programId ?? '') === id && s.createdAt >= dayStart && s.createdAt <= dayEnd,
-        ).length
+        row[id] = bucketMap?.get(id) ?? 0
       }
       return row
     })
 
     const dynamicChartConfig: ChartConfig = {
       type: 'bar',
-      xKey: 'date',
-      xLabel: 'Date',
+      xKey: 'period',
+      xLabel: 'Period',
       yLabel: 'New Submissions',
+      allowedChartTypes: programIds.length <= 5 ? ['bar', 'stackedBar', 'line'] : ['bar', 'stackedBar'],
       series: programIds.map((id, i) => ({
         key: id,
         label: programList.find((p) => p.id === id)?.name ?? id,
@@ -136,12 +144,13 @@ const samplePreview = transformData(sampleSubmissions, {
   programIds: ['prog-alpha-001'],
   startDate: '2025-07-11',
   endDate: '2025-07-24',
+  interval: 'day',
 })
 
 export const dailyTriageMovement: ReportModule = {
   id: 'dailyTriageMovement',
   title: 'Daily Triage Movement',
-  description: 'Shows daily submission flow in and out of triage for the selected program and date range.',
+  description: 'Shows submission flow in and out of triage for the selected program, date range, and time interval.',
   category: 'triage',
   requiredScopes: ['core_platform:read'],
   isAvailable: () => true,
@@ -150,6 +159,14 @@ export const dailyTriageMovement: ReportModule = {
     { key: 'programIds', label: 'Programs', type: 'programSelect', required: true },
     { key: 'startDate', label: 'Start Date', type: 'dateRange', required: true, defaultValue: '' },
     { key: 'endDate', label: 'End Date', type: 'dateRange', required: true, defaultValue: '' },
+    {
+      key: 'interval',
+      label: 'Interval',
+      type: 'select',
+      required: false,
+      defaultValue: 'day',
+      options: INTERVAL_OPTIONS,
+    },
   ],
 
   async fetchData(params) {
@@ -162,7 +179,7 @@ export const dailyTriageMovement: ReportModule = {
   transform: transformData,
 
   tableColumns: [
-    { accessorKey: 'date', header: 'Date' },
+    { accessorKey: 'period', header: 'Period' },
     { accessorKey: 'new', header: 'New' },
     { accessorKey: 'forwarded', header: 'Forwarded' },
     { accessorKey: 'closed', header: 'Closed' },
@@ -172,9 +189,10 @@ export const dailyTriageMovement: ReportModule = {
 
   chartConfig: {
     type: 'stackedBar',
-    xKey: 'date',
-    xLabel: 'Date',
+    xKey: 'period',
+    xLabel: 'Period',
     yLabel: 'Submissions',
+    allowedChartTypes: ['stackedBar', 'bar', 'line'],
     series: [
       { key: 'new', label: 'New', color: CHART_COLORS.new },
       { key: 'forwarded', label: 'Forwarded', color: CHART_COLORS.forwarded },

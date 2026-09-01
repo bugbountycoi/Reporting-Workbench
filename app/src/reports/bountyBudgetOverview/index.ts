@@ -2,7 +2,7 @@ import type { ReportModule, ReportData, ReportParams, ChartConfig } from '../typ
 import { getProgramDetail } from '../../api/endpoints/programs'
 import { getAllPayouts } from '../../api/endpoints/payouts'
 import type { PayoutViewModel } from '../../api/types'
-import { unixToWeekLabel } from '../../utils/dates'
+import { bucketKey, INTERVAL_OPTIONS, type Interval } from '../../utils/intervals'
 import payoutsSample from '../../fixtures/payouts.sample.json'
 
 const COMPARE_COLORS = ['#4C59A8', '#02A87C', '#F03157', '#E0AC00', '#7BCFDB', '#E99C4A', '#575865']
@@ -31,31 +31,29 @@ function groupBySeverity(payouts: PayoutViewModel[]) {
   }))
 }
 
-function groupByWeek(payouts: PayoutViewModel[]) {
-  const weeks: Record<string, number> = {}
+function groupByInterval(payouts: PayoutViewModel[], interval: Interval) {
+  const buckets: Record<string, number> = {}
   for (const p of payouts) {
-    const week = unixToWeekLabel(p.createdAt)
-    weeks[week] = (weeks[week] ?? 0) + p.amount.value
+    const key = bucketKey(p.createdAt, interval)
+    buckets[key] = (buckets[key] ?? 0) + p.amount.value
   }
-  return Object.entries(weeks)
+  return Object.entries(buckets)
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([week, total]) => ({ week, total }))
+    .map(([period, total]) => ({ period, total }))
 }
 
-function groupByWeekPerProgram(payouts: PayoutViewModel[], programId: string) {
-  const weeks: Record<string, number> = {}
+function groupByIntervalPerProgram(payouts: PayoutViewModel[], programId: string, interval: Interval) {
+  const buckets: Record<string, number> = {}
   for (const p of payouts.filter((x) => (x.originators.programId ?? '') === programId)) {
-    const week = unixToWeekLabel(p.createdAt)
-    weeks[week] = (weeks[week] ?? 0) + p.amount.value
+    const key = bucketKey(p.createdAt, interval)
+    buckets[key] = (buckets[key] ?? 0) + p.amount.value
   }
-  return weeks
+  return buckets
 }
 
-function transformData(
-  raw: unknown,
-  params: ReportParams,
-): ReportData {
+function transformData(raw: unknown, params: ReportParams): ReportData {
   const { payouts, programDetails } = raw as { payouts: PayoutViewModel[]; programDetails: ProgramDetail[] }
+  const interval = (params.interval as Interval | undefined) ?? 'week'
 
   const programIds = params.programIds ?? (params.programId ? [params.programId] : [])
   const viewMode = params.viewMode ?? 'combine'
@@ -87,27 +85,27 @@ function transformData(
   if (viewMode === 'compare' && programIds.length > 1) {
     const programList = params.programs ?? []
 
-    // Collect all weeks across all programs
-    const allWeeks = new Set<string>()
+    const allPeriods = new Set<string>()
     for (const id of programIds) {
-      const weeks = groupByWeekPerProgram(filtered, id)
-      Object.keys(weeks).forEach((w) => allWeeks.add(w))
+      const perProg = groupByIntervalPerProgram(filtered, id, interval)
+      Object.keys(perProg).forEach((k) => allPeriods.add(k))
     }
 
-    const compareData = [...allWeeks].sort().map((week) => {
-      const row: Record<string, unknown> = { week }
+    const compareData = [...allPeriods].sort().map((period) => {
+      const row: Record<string, unknown> = { period }
       for (const id of programIds) {
-        const perProg = groupByWeekPerProgram(filtered, id)
-        row[id] = perProg[week] ?? 0
+        const perProg = groupByIntervalPerProgram(filtered, id, interval)
+        row[id] = perProg[period] ?? 0
       }
       return row
     })
 
     const dynamicChartConfig: ChartConfig = {
       type: 'bar',
-      xKey: 'week',
-      xLabel: 'Week',
+      xKey: 'period',
+      xLabel: 'Period',
       yLabel: `${currency} Awarded`,
+      allowedChartTypes: programIds.length <= 5 ? ['bar', 'stackedBar', 'line'] : ['bar', 'stackedBar'],
       series: programIds.map((id, i) => ({
         key: id,
         label: programList.find((p) => p.id === id)?.name ?? id,
@@ -124,11 +122,11 @@ function transformData(
     }
   }
 
-  const byWeekData = groupByWeek(filtered)
+  const byIntervalData = groupByInterval(filtered, interval)
 
   return {
     rows: bySeverityData as Record<string, unknown>[],
-    chartData: byWeekData as Record<string, unknown>[],
+    chartData: byIntervalData as Record<string, unknown>[],
     summaryCards,
     rawData: raw,
   }
@@ -147,7 +145,7 @@ const sampleRaw = {
   ],
 }
 
-const samplePreview = transformData(sampleRaw, { programIds: ['prog-alpha-001'] })
+const samplePreview = transformData(sampleRaw, { programIds: ['prog-alpha-001'], interval: 'week' })
 
 export const bountyBudgetOverview: ReportModule = {
   id: 'bountyBudgetOverview',
@@ -159,6 +157,14 @@ export const bountyBudgetOverview: ReportModule = {
 
   paramFields: [
     { key: 'programIds', label: 'Programs', type: 'programSelect', required: true },
+    {
+      key: 'interval',
+      label: 'Chart Interval',
+      type: 'select',
+      required: false,
+      defaultValue: 'week',
+      options: INTERVAL_OPTIONS,
+    },
   ],
 
   async fetchData(params) {
@@ -182,9 +188,10 @@ export const bountyBudgetOverview: ReportModule = {
 
   chartConfig: {
     type: 'bar',
-    xKey: 'week',
-    xLabel: 'Week',
+    xKey: 'period',
+    xLabel: 'Period',
     yLabel: 'USD Awarded',
+    allowedChartTypes: ['bar', 'line'],
     series: [{ key: 'total', label: 'Amount Awarded', color: '#4C59A8' }],
   },
 
