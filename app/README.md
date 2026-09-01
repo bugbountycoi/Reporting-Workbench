@@ -33,11 +33,15 @@ A local, private reporting tool for [Intigriti](https://www.intigriti.com/) API 
 
 | Requirement | Version |
 |---|---|
-| Node.js | 18 or newer |
-| npm | 9 or newer |
+| Node.js (includes npm) | 18 or newer |
 | A modern browser | Chrome, Edge, Firefox, or Safari |
 
-Check your versions:
+npm is bundled with Node.js — installing Node.js is all you need.
+
+**Don't have Node.js?** The official installer covers all platforms:
+[https://nodejs.org/en/download](https://nodejs.org/en/download)
+
+Check your versions after installing:
 ```bash
 node --version   # should print v18.x.x or higher
 npm --version    # should print 9.x.x or higher
@@ -434,7 +438,7 @@ scripts/
 
 | Problem | Fix |
 |---|---|
-| `npm run dev` throws "command not found" | Install Node.js 18+ from nodejs.org |
+| `npm run dev` throws "command not found" | Install Node.js 18+ (includes npm): [nodejs.org/en/download](https://nodejs.org/en/download) |
 | "Network error" or "Failed to fetch" | The Vite dev server must be running — CORS is handled by the local proxy |
 | 401 Unauthorized | Your token has expired. Click the network icon → Disconnect → reconnect |
 | 403 Forbidden | Your token lacks the required API scope. Check your Intigriti API configuration |
