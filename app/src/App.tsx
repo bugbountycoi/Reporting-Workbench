@@ -69,8 +69,9 @@ export default function App() {
     setError(null)
     setShowSamplePreview(false)
     try {
-      const raw = await selectedReport.fetchData(params)
-      const data = selectedReport.transform(raw, params)
+      const paramsWithContext = { ...params, programs }
+      const raw = await selectedReport.fetchData(paramsWithContext)
+      const data = selectedReport.transform(raw, paramsWithContext)
       setReportData(data)
     } catch (e) {
       setError(String(e))
@@ -148,10 +149,10 @@ export default function App() {
                 <>
                   <SummaryCards cards={activeData.summaryCards} />
 
-                  {selectedReport.chartConfig && (
+                  {(activeData.chartConfig ?? selectedReport.chartConfig) && (
                     <ChartPanel
                       id={`chart-${selectedReport.id}`}
-                      config={selectedReport.chartConfig}
+                      config={activeData.chartConfig ?? selectedReport.chartConfig!}
                       data={activeData.chartData}
                     />
                   )}

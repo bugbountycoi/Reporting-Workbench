@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { ReportModule, ReportParams } from '../reports/types'
 import type { ProgramOverviewViewModel } from '../api/types'
+import { ProgramMultiSelect } from './ProgramMultiSelect'
 
 interface Props {
   report: ReportModule
@@ -47,12 +48,16 @@ const DATE_SHORTCUTS: { label: string; start: () => string; end: () => string }[
 ]
 
 export function ReportConfigPanel({ report, programs, onGenerate, loading }: Props) {
+  const hasProgramSelect = report.paramFields.some((f) => f.type === 'programSelect')
+
   const [params, setParams] = useState<ReportParams>(() => {
     const defaults: ReportParams = {}
     for (const field of report.paramFields) {
       if (field.defaultValue !== undefined) defaults[field.key] = field.defaultValue
     }
-    if (programs.length === 1) defaults['programId'] = programs[0].id
+    if (hasProgramSelect) {
+      defaults['programIds'] = programs.map((p) => p.id)
+    }
     return defaults
   })
 
@@ -62,11 +67,18 @@ export function ReportConfigPanel({ report, programs, onGenerate, loading }: Pro
     report.paramFields.some((f) => f.key === 'startDate') &&
     report.paramFields.some((f) => f.key === 'endDate')
 
+  const selectedProgramIds = (params['programIds'] as string[] | undefined) ?? []
+  const viewMode = (params['viewMode'] as 'compare' | 'combine' | undefined) ?? 'combine'
+
   const canGenerate = report.paramFields
     .filter((f) => f.required)
-    .every((f) => Boolean(params[f.key]))
+    .every((f) => {
+      const val = params[f.key]
+      if (Array.isArray(val)) return val.length > 0
+      return Boolean(val)
+    })
 
-  const applyShortcut = (shortcut: typeof DATE_SHORTCUTS[number]) => {
+  const applyShortcut = (shortcut: (typeof DATE_SHORTCUTS)[number]) => {
     setParams((p) => ({ ...p, startDate: shortcut.start(), endDate: shortcut.end() }))
   }
 
@@ -74,7 +86,9 @@ export function ReportConfigPanel({ report, programs, onGenerate, loading }: Pro
     <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4 space-y-4">
       {hasDateRange && (
         <div>
-          <p className="text-xs font-semibold text-brand-gray-dark mb-2 uppercase tracking-wide">Quick date range</p>
+          <p className="text-xs font-semibold text-brand-gray-dark mb-2 uppercase tracking-wide">
+            Quick date range
+          </p>
           <div className="flex flex-wrap gap-1.5">
             {DATE_SHORTCUTS.map((s) => (
               <button
@@ -89,22 +103,19 @@ export function ReportConfigPanel({ report, programs, onGenerate, loading }: Pro
         </div>
       )}
 
-      <div className="flex flex-wrap gap-4 items-end">
+      <div className="flex flex-wrap gap-6 items-start">
         {report.paramFields.map((field) => {
           if (field.type === 'programSelect') {
             return (
-              <div key={field.key} className="min-w-[200px]">
-                <label className="block text-xs font-semibold text-gray-600 mb-1">{field.label}</label>
-                <select
-                  value={(params[field.key] as string) ?? ''}
-                  onChange={(e) => set(field.key, e.target.value)}
-                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full focus:outline-none focus:ring-2 focus:ring-brand-blue"
-                >
-                  <option value="">Select program…</option>
-                  {programs.map((p) => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))}
-                </select>
+              <div key={field.key} className="min-w-[240px]">
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+                  {field.label}
+                </label>
+                <ProgramMultiSelect
+                  programs={programs}
+                  selectedIds={selectedProgramIds}
+                  onChange={(ids) => set('programIds', ids)}
+                />
               </div>
             )
           }
@@ -112,7 +123,9 @@ export function ReportConfigPanel({ report, programs, onGenerate, loading }: Pro
           if (field.type === 'dateRange') {
             return (
               <div key={field.key} className="min-w-[150px]">
-                <label className="block text-xs font-semibold text-gray-600 mb-1">{field.label}</label>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">
+                  {field.label}
+                </label>
                 <input
                   type="date"
                   value={(params[field.key] as string) ?? ''}
@@ -126,14 +139,18 @@ export function ReportConfigPanel({ report, programs, onGenerate, loading }: Pro
           if (field.type === 'select') {
             return (
               <div key={field.key} className="min-w-[220px]">
-                <label className="block text-xs font-semibold text-gray-600 mb-1">{field.label}</label>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">
+                  {field.label}
+                </label>
                 <select
                   value={(params[field.key] as string) ?? ''}
                   onChange={(e) => set(field.key, e.target.value)}
                   className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full focus:outline-none focus:ring-2 focus:ring-brand-blue"
                 >
                   {field.options?.map((o) => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -142,7 +159,9 @@ export function ReportConfigPanel({ report, programs, onGenerate, loading }: Pro
 
           return (
             <div key={field.key} className="min-w-[180px]">
-              <label className="block text-xs font-semibold text-gray-600 mb-1">{field.label}</label>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">
+                {field.label}
+              </label>
               <input
                 type="text"
                 value={(params[field.key] as string) ?? ''}
@@ -152,7 +171,34 @@ export function ReportConfigPanel({ report, programs, onGenerate, loading }: Pro
             </div>
           )
         })}
+      </div>
 
+      {hasProgramSelect && selectedProgramIds.length > 1 && (
+        <div>
+          <p className="text-xs font-semibold text-brand-gray-dark mb-2 uppercase tracking-wide">
+            Multi-program view
+          </p>
+          <div className="flex gap-2">
+            {(['combine', 'compare'] as const).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => set('viewMode', mode)}
+                className={`px-3 py-1.5 text-xs rounded-md border transition-colors font-medium ${
+                  viewMode === mode
+                    ? 'bg-brand-navy text-white border-brand-navy'
+                    : 'border-gray-200 bg-brand-near-white text-brand-gray-dark hover:border-brand-blue hover:text-brand-blue'
+                }`}
+              >
+                {mode === 'combine'
+                  ? 'Combine — merge all programs'
+                  : 'Compare — one series per program'}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div>
         <button
           onClick={() => onGenerate(params)}
           disabled={!canGenerate || loading}

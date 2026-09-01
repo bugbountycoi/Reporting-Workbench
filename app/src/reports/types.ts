@@ -31,6 +31,9 @@ export interface ExportConfig {
 
 export interface ReportParams {
   programId?: string
+  programIds?: string[]
+  viewMode?: 'compare' | 'combine'
+  programs?: ProgramOverviewViewModel[]
   startDate?: string
   endDate?: string
   [key: string]: unknown
@@ -41,6 +44,7 @@ export interface ReportData {
   summaryCards: SummaryCard[]
   chartData: Record<string, unknown>[]
   rawData?: unknown
+  chartConfig?: ChartConfig
 }
 
 export interface AppContext {

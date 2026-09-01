@@ -6,6 +6,32 @@ import type { ProgramOverviewViewModel } from '../api/types'
 
 type AuthMode = 'bearer' | 'oauth'
 
+function ProgramList({ programs }: { programs: ProgramOverviewViewModel[] }) {
+  if (programs.length === 0) return null
+  return (
+    <div className="border border-gray-100 rounded-lg overflow-hidden">
+      <div className="bg-brand-near-white px-3 py-1.5 border-b border-gray-100 flex items-center justify-between">
+        <span className="text-xs font-semibold text-brand-gray-dark uppercase tracking-wide">
+          Accessible Programs
+        </span>
+        <span className="text-xs text-brand-gray-mid font-medium">{programs.length}</span>
+      </div>
+      <div className="max-h-48 overflow-y-auto divide-y divide-gray-50">
+        {programs.map((p) => (
+          <div key={p.id} className="flex items-center justify-between px-3 py-2">
+            <span className="text-sm text-gray-800">{p.name}</span>
+            {p.status?.value && (
+              <span className="text-xs text-brand-gray-mid bg-gray-100 px-2 py-0.5 rounded-full ml-2 shrink-0">
+                {p.status.value}
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 interface Props {
   onConnected: () => void
   isConnected: boolean
@@ -153,12 +179,15 @@ export function ApiKeyPanel({ onConnected, isConnected, programs }: Props) {
               </button>
             </>
           ) : (
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 text-green-700 text-sm">
-                <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
-                Connected · {programs.length} program{programs.length !== 1 ? 's' : ''} accessible
+            <div>
+              <div className="flex items-center gap-3 mb-3">
+                <div className="flex items-center gap-2 text-green-700 text-sm font-semibold">
+                  <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
+                  Connected
+                </div>
+                <button onClick={handleClear} className="text-xs text-brand-red hover:text-red-700 ml-4">Disconnect</button>
               </div>
-              <button onClick={handleClear} className="text-xs text-brand-red hover:text-red-700 ml-4">Disconnect</button>
+              <ProgramList programs={programs} />
             </div>
           )}
         </div>
@@ -194,12 +223,15 @@ export function ApiKeyPanel({ onConnected, isConnected, programs }: Props) {
               </button>
             </>
           ) : (
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 text-green-700 text-sm">
-                <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
-                Connected via OAuth · {programs.length} program{programs.length !== 1 ? 's' : ''} accessible
+            <div>
+              <div className="flex items-center gap-3 mb-3">
+                <div className="flex items-center gap-2 text-green-700 text-sm font-semibold">
+                  <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
+                  Connected via OAuth
+                </div>
+                <button onClick={handleClear} className="text-xs text-brand-red hover:text-red-700 ml-4">Disconnect</button>
               </div>
-              <button onClick={handleClear} className="text-xs text-brand-red hover:text-red-700 ml-4">Disconnect</button>
+              <ProgramList programs={programs} />
             </div>
           )}
         </div>

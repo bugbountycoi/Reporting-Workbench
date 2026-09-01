@@ -1,4 +1,4 @@
-import type { ReportModule, ReportData, ReportParams } from '../types'
+import type { ReportModule, ReportData, ReportParams, ChartConfig } from '../types'
 import { getProgramSubmissions } from '../../api/endpoints/programs'
 import type { SubmissionOverviewViewModel } from '../../api/types'
 import { formatDate, startOfDay, eachDayOfInterval, isoToDate } from '../../utils/dates'
@@ -10,6 +10,8 @@ const CHART_COLORS = {
   closed: '#575865',
   duplicate: '#E0AC00',
 }
+
+const COMPARE_COLORS = ['#4C59A8', '#02A87C', '#F03157', '#E0AC00', '#7BCFDB', '#E99C4A', '#575865']
 
 function buildDailyRows(submissions: SubmissionOverviewViewModel[], startDate: string, endDate: string) {
   const start = startOfDay(isoToDate(startDate))
@@ -33,7 +35,9 @@ function buildDailyRows(submissions: SubmissionOverviewViewModel[], startDate: s
       (s) => s.state.closeReason?.value.toLowerCase() === 'duplicate',
     ).length
     const closedCount = daySubmissions.filter(
-      (s) => s.state.status.value.toLowerCase() === 'closed' && !s.state.closeReason?.value.toLowerCase().includes('duplicate'),
+      (s) =>
+        s.state.status.value.toLowerCase() === 'closed' &&
+        !s.state.closeReason?.value.toLowerCase().includes('duplicate'),
     ).length
 
     return {
@@ -52,30 +56,84 @@ function transformData(raw: unknown, params: ReportParams): ReportData {
   const startDate = params.startDate ?? '2025-07-11'
   const endDate = params.endDate ?? '2025-07-28'
 
-  const filtered = params.programId
-    ? submissions.filter((s) => s.originators.programId === params.programId)
-    : submissions
+  const programIds = params.programIds ?? (params.programId ? [params.programId] : [])
+  const viewMode = params.viewMode ?? 'combine'
+
+  const filtered =
+    programIds.length > 0
+      ? submissions.filter((s) => programIds.includes(s.originators.programId ?? ''))
+      : submissions
 
   const rows = buildDailyRows(filtered, startDate, endDate)
   const totalNew = rows.reduce((sum, r) => sum + (r.new as number), 0)
   const totalClosed = rows.reduce((sum, r) => sum + (r.closed as number), 0)
   const netChange = rows.reduce((sum, r) => sum + (r.netChange as number), 0)
 
+  const summaryCards = [
+    { label: 'New Submissions', value: totalNew, trend: 'neutral' as const },
+    {
+      label: 'Forwarded to Customer',
+      value: rows.reduce((s, r) => s + (r.forwarded as number), 0),
+      trend: 'neutral' as const,
+    },
+    { label: 'Closed / Rejected', value: totalClosed, trend: 'neutral' as const },
+    {
+      label: 'Net Queue Change',
+      value: netChange > 0 ? `+${netChange}` : netChange,
+      trend: netChange > 0 ? ('up' as const) : netChange < 0 ? ('down' as const) : ('neutral' as const),
+    },
+  ]
+
+  if (viewMode === 'compare' && programIds.length > 1) {
+    const programList = params.programs ?? []
+    const start = startOfDay(isoToDate(startDate))
+    const end = startOfDay(isoToDate(endDate))
+    const days = eachDayOfInterval({ start, end })
+
+    const compareData = days.map((day) => {
+      const dayStr = formatDate(day)
+      const dayStart = day.getTime() / 1000
+      const dayEnd = dayStart + 86399
+      const row: Record<string, unknown> = { date: dayStr }
+      for (const id of programIds) {
+        row[id] = filtered.filter(
+          (s) => (s.originators.programId ?? '') === id && s.createdAt >= dayStart && s.createdAt <= dayEnd,
+        ).length
+      }
+      return row
+    })
+
+    const dynamicChartConfig: ChartConfig = {
+      type: 'bar',
+      xKey: 'date',
+      xLabel: 'Date',
+      yLabel: 'New Submissions',
+      series: programIds.map((id, i) => ({
+        key: id,
+        label: programList.find((p) => p.id === id)?.name ?? id,
+        color: COMPARE_COLORS[i % COMPARE_COLORS.length],
+      })),
+    }
+
+    return {
+      rows: rows as Record<string, unknown>[],
+      chartData: compareData,
+      summaryCards,
+      chartConfig: dynamicChartConfig,
+      rawData: raw,
+    }
+  }
+
   return {
     rows: rows as Record<string, unknown>[],
     chartData: rows as Record<string, unknown>[],
-    summaryCards: [
-      { label: 'New Submissions', value: totalNew, trend: 'neutral' },
-      { label: 'Forwarded to Customer', value: rows.reduce((s, r) => s + (r.forwarded as number), 0), trend: 'neutral' },
-      { label: 'Closed / Rejected', value: totalClosed, trend: 'neutral' },
-      { label: 'Net Queue Change', value: netChange > 0 ? `+${netChange}` : netChange, trend: netChange > 0 ? 'up' : netChange < 0 ? 'down' : 'neutral' },
-    ],
+    summaryCards,
     rawData: raw,
   }
 }
 
 const samplePreview = transformData(sampleSubmissions, {
-  programId: 'prog-alpha-001',
+  programIds: ['prog-alpha-001'],
   startDate: '2025-07-11',
   endDate: '2025-07-24',
 })
@@ -89,14 +147,16 @@ export const dailyTriageMovement: ReportModule = {
   isAvailable: () => true,
 
   paramFields: [
-    { key: 'programId', label: 'Program', type: 'programSelect', required: true },
+    { key: 'programIds', label: 'Programs', type: 'programSelect', required: true },
     { key: 'startDate', label: 'Start Date', type: 'dateRange', required: true, defaultValue: '' },
     { key: 'endDate', label: 'End Date', type: 'dateRange', required: true, defaultValue: '' },
   ],
 
   async fetchData(params) {
-    if (!params.programId) throw new Error('Program is required')
-    return getProgramSubmissions(params.programId)
+    const ids = params.programIds ?? []
+    if (ids.length === 0) throw new Error('At least one program is required')
+    const results = await Promise.all(ids.map((id) => getProgramSubmissions(id)))
+    return results.flat()
   },
 
   transform: transformData,
