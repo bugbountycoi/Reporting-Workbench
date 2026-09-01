@@ -1,15 +1,15 @@
-import { API_CONFIG } from '../../config/api'
+import { getMockMode } from '../../config/api'
 import { apiGet } from '../client'
 import { fixture } from '../fixtureLoader'
 import type { PayoutViewModel, RewardRequestOverviewViewModel, PaginatedResponse, RewardBudget } from '../types'
 
 export async function getAllPayouts(): Promise<PayoutViewModel[]> {
-  if (API_CONFIG.mockMode) return fixture.payouts() as Promise<PayoutViewModel[]>
+  if (getMockMode()) return fixture.payouts() as Promise<PayoutViewModel[]>
   return apiGet<PayoutViewModel[]>('/payouts')
 }
 
 export async function getAllRewardRequests(): Promise<RewardRequestOverviewViewModel[]> {
-  if (API_CONFIG.mockMode) return fixture.rewardRequests() as Promise<RewardRequestOverviewViewModel[]>
+  if (getMockMode()) return fixture.rewardRequests() as Promise<RewardRequestOverviewViewModel[]>
 
   const pageSize = 200
   let offset = 0
@@ -29,7 +29,7 @@ export async function getAllRewardRequests(): Promise<RewardRequestOverviewViewM
 }
 
 export async function getRewardBudget(): Promise<RewardBudget> {
-  if (API_CONFIG.mockMode) {
+  if (getMockMode()) {
     return {
       available: { value: 42000, currency: 'USD' },
       spent: { value: 58000, currency: 'USD' },

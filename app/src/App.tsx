@@ -16,7 +16,7 @@ import { getPrograms } from './api/endpoints/programs'
 import { getAvailableReports } from './reports/registry'
 import type { ReportModule, ReportData, ReportParams, AppContext } from './reports/types'
 import type { ProgramOverviewViewModel } from './api/types'
-import { API_CONFIG } from './config/api'
+import { getMockMode } from './config/api'
 import { saveWorkbenchConfig, loadWorkbenchConfig, type SavedModuleParams } from './config/savedConfig'
 
 const TOKEN_STORAGE_KEY = 'intigriti_workbench_token'
@@ -63,6 +63,8 @@ export default function App() {
   const [error, setError] = useState<string | null>(null)
   const [showSamplePreview, setShowSamplePreview] = useState(true)
 
+  const [isMockMode, setIsMockMode] = useState(() => getMockMode())
+
   const [panelsOpen, setPanelsOpen] = useState({ api: true, cache: true, encryption: true })
   const [cacheConfigured, setCacheConfigured] = useState(false)
   const [encryptionConfigured, setEncryptionConfigured] = useState(false)
@@ -81,6 +83,7 @@ export default function App() {
     try {
       const progs = await getPrograms()
       setPrograms(progs)
+      setIsMockMode(getMockMode())
       setAppState('connected')
       setPanelsOpen((p) => ({ ...p, api: false }))
 
@@ -108,6 +111,9 @@ export default function App() {
     if (stored) {
       hasAutoConnected.current = true
       enableLocalStorage()
+      handleConnected()
+    } else if (getMockMode()) {
+      hasAutoConnected.current = true
       handleConnected()
     }
   }, [handleConnected])
@@ -282,9 +288,9 @@ export default function App() {
 
       {isConnected && (
         <>
-          {API_CONFIG.mockMode && (
+          {isMockMode && (
             <div className="mb-4 px-4 py-2 bg-amber-100 border border-amber-300 rounded-lg text-amber-800 text-sm font-medium">
-              Mock mode active — all API calls return fixture data. Run without VITE_MOCK_MODE to use live data.
+              Sample data mode — all reports use built-in fixture data. Open API Settings to switch to your live data.
             </div>
           )}
 

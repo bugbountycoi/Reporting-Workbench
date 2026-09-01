@@ -2,9 +2,11 @@ import { useState, useEffect } from 'react'
 import { setToken, clearToken, enableLocalStorage, disableLocalStorage } from '../auth/store'
 import { buildAuthUrl, exchangeCode, scheduleRefresh, cancelRefreshSchedule } from '../auth/oauth'
 import { getPrograms } from '../api/endpoints/programs'
+import { getMockMode, setMockMode } from '../config/api'
 import type { ProgramOverviewViewModel } from '../api/types'
 
 type AuthMode = 'bearer' | 'oauth'
+type SourceMode = 'mock' | 'live'
 
 function submissionsUrl(p: ProgramOverviewViewModel) {
   return `https://app.intigriti.com/company/programs/${p.companyHandle}/${p.handle}/submissions`
@@ -50,6 +52,7 @@ interface Props {
 }
 
 export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Props) {
+  const [sourceMode, setSourceMode] = useState<SourceMode>(getMockMode() ? 'mock' : 'live')
   const [authMode, setAuthMode] = useState<AuthMode>('bearer')
   const [bearerInput, setBearerInput] = useState('')
   const [clientId, setClientId] = useState('')
@@ -76,6 +79,49 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
     window.addEventListener('oauth-callback', handler)
     return () => window.removeEventListener('oauth-callback', handler)
   }, [oauthState, pendingClientId, pendingClientSecret, onConnected])
+
+  const handleSourceChange = (mode: SourceMode) => {
+    if (mode === sourceMode) return
+    setError(null)
+
+    if (mode === 'live') {
+      setMockMode(false) // clear saved mock preference
+      if (isConnected) {
+        // Already connected in mock mode — disconnect and reload to live setup
+        clearToken()
+        cancelRefreshSchedule()
+        disableLocalStorage()
+        window.location.reload()
+        return
+      }
+    } else {
+      // Switching to mock while connected in live mode — disconnect and re-connect as mock
+      if (isConnected) {
+        setMockMode(true)
+        clearToken()
+        cancelRefreshSchedule()
+        disableLocalStorage()
+        window.location.reload()
+        return
+      }
+    }
+
+    setSourceMode(mode)
+  }
+
+  const handleUseMock = async () => {
+    setMockMode(true)
+    setTesting(true)
+    setError(null)
+    try {
+      await onConnected()
+    } catch (e) {
+      setError(String(e))
+      setMockMode(false)
+    } finally {
+      setTesting(false)
+    }
+  }
 
   const handleTestBearer = async () => {
     if (!bearerInput.trim()) return
@@ -107,6 +153,7 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
   }
 
   const handleClear = () => {
+    setMockMode(false)
     clearToken()
     cancelRefreshSchedule()
     disableLocalStorage()
@@ -119,6 +166,9 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
     if (val) enableLocalStorage()
     else disableLocalStorage()
   }
+
+  const connectedViaMock = isConnected && getMockMode()
+  const connectedViaLive = isConnected && !getMockMode()
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm" data-no-print>
@@ -137,35 +187,83 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
         )}
       </div>
 
-      {!isConnected && (
-        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
-          API data and local cache files may contain sensitive vulnerability and program information. Do not share exported data or cache files without review.
+      {/* Data source toggle */}
+      <div className="mb-4">
+        <p className="text-xs text-brand-gray-mid mb-1.5 font-medium uppercase tracking-wide">Data Source</p>
+        <div className="flex gap-2">
+          {(['mock', 'live'] as SourceMode[]).map((mode) => {
+            const active = isConnected ? (mode === 'mock' ? connectedViaMock : connectedViaLive) : sourceMode === mode
+            return (
+              <button
+                key={mode}
+                onClick={() => handleSourceChange(mode)}
+                className={`px-3 py-1.5 rounded-md text-sm font-semibold transition-colors ${
+                  active
+                    ? 'bg-brand-navy text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                {mode === 'mock' ? 'Mock Data' : 'Live API'}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Mock data section */}
+      {(sourceMode === 'mock' && !isConnected) && (
+        <div className="space-y-3">
+          <p className="text-xs text-brand-gray-mid">
+            Use built-in sample reports with realistic fixture data. No API key or Intigriti account required.
+          </p>
+          <button
+            onClick={handleUseMock}
+            disabled={testing}
+            className="px-4 py-2 bg-brand-navy text-white rounded-lg text-sm font-semibold hover:bg-brand-navy-light disabled:opacity-50 transition-colors"
+          >
+            {testing ? 'Connecting…' : 'Use Sample Data →'}
+          </button>
         </div>
       )}
 
-      <div className="flex gap-2 mb-4">
-        {(['bearer', 'oauth'] as AuthMode[]).map((mode) => (
-          <button
-            key={mode}
-            onClick={() => setAuthMode(mode)}
-            className={`px-3 py-1.5 rounded-md text-sm font-semibold transition-colors ${
-              authMode === mode
-                ? 'bg-brand-navy text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            {mode === 'bearer' ? 'Bearer Token' : 'OAuth 2.0'}
-          </button>
-        ))}
-      </div>
+      {connectedViaMock && (
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 text-green-700 text-sm font-semibold">
+            <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
+            Connected — sample data
+          </div>
+          <button onClick={handleClear} className="text-xs text-brand-red hover:text-red-700 ml-4">Disconnect</button>
+        </div>
+      )}
 
-      {authMode === 'bearer' ? (
-        <div className="space-y-3">
-          <p className="text-xs text-brand-gray-mid">
-            Generate a non-expiring access token in the Intigriti admin panel (Admin › Integrations › Intigriti API) and paste it below.
-          </p>
-          {!isConnected ? (
-            <>
+      {/* Live API section */}
+      {(sourceMode === 'live' && !isConnected) && (
+        <>
+          <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
+            API data and local cache files may contain sensitive vulnerability and program information. Do not share exported data or cache files without review.
+          </div>
+
+          <div className="flex gap-2 mb-4">
+            {(['bearer', 'oauth'] as AuthMode[]).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => setAuthMode(mode)}
+                className={`px-3 py-1.5 rounded-md text-sm font-semibold transition-colors ${
+                  authMode === mode
+                    ? 'bg-brand-navy text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                {mode === 'bearer' ? 'Bearer Token' : 'OAuth 2.0'}
+              </button>
+            ))}
+          </div>
+
+          {authMode === 'bearer' ? (
+            <div className="space-y-3">
+              <p className="text-xs text-brand-gray-mid">
+                Generate a non-expiring access token in the Intigriti admin panel (Admin › Integrations › Intigriti API) and paste it below.
+              </p>
               <input
                 type="password"
                 placeholder="Paste your Bearer token"
@@ -182,27 +280,12 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
               >
                 {testing ? 'Testing…' : 'Test & Connect'}
               </button>
-            </>
-          ) : (
-            <div>
-              <div className="flex items-center gap-3 mb-3">
-                <div className="flex items-center gap-2 text-green-700 text-sm font-semibold">
-                  <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
-                  Connected
-                </div>
-                <button onClick={handleClear} className="text-xs text-brand-red hover:text-red-700 ml-4">Disconnect</button>
-              </div>
-              <ProgramList programs={programs} />
             </div>
-          )}
-        </div>
-      ) : (
-        <div className="space-y-3">
-          <p className="text-xs text-brand-gray-mid">
-            Enter your OAuth client credentials from Admin › Integrations › Intigriti API. You will be redirected to Intigriti to authorise.
-          </p>
-          {!isConnected ? (
-            <>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-xs text-brand-gray-mid">
+                Enter your OAuth client credentials from Admin › Integrations › Intigriti API. You will be redirected to Intigriti to authorise.
+              </p>
               <input
                 type="text"
                 placeholder="Client ID"
@@ -226,38 +309,38 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
               >
                 Authorise with Intigriti →
               </button>
-            </>
-          ) : (
-            <div>
-              <div className="flex items-center gap-3 mb-3">
-                <div className="flex items-center gap-2 text-green-700 text-sm font-semibold">
-                  <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
-                  Connected via OAuth
-                </div>
-                <button onClick={handleClear} className="text-xs text-brand-red hover:text-red-700 ml-4">Disconnect</button>
-              </div>
-              <ProgramList programs={programs} />
             </div>
           )}
-        </div>
+
+          <div className="mt-4 pt-4 border-t border-gray-100">
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={localStorageEnabled}
+                onChange={(e) => handleLocalStorageToggle(e.target.checked)}
+                className="mt-0.5 accent-brand-blue"
+              />
+              <div>
+                <span className="text-sm text-gray-700 font-semibold">Remember on this device</span>
+                <p className="text-xs text-brand-red mt-0.5">
+                  Insecure: stores your token in browser localStorage. Do not enable on shared or untrusted devices.
+                </p>
+              </div>
+            </label>
+          </div>
+        </>
       )}
 
-      {!isConnected && (
-        <div className="mt-4 pt-4 border-t border-gray-100">
-          <label className="flex items-start gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={localStorageEnabled}
-              onChange={(e) => handleLocalStorageToggle(e.target.checked)}
-              className="mt-0.5 accent-brand-blue"
-            />
-            <div>
-              <span className="text-sm text-gray-700 font-semibold">Remember on this device</span>
-              <p className="text-xs text-brand-red mt-0.5">
-                Insecure: stores your token in browser localStorage. Do not enable on shared or untrusted devices.
-              </p>
+      {connectedViaLive && (
+        <div>
+          <div className="flex items-center gap-3 mb-3">
+            <div className="flex items-center gap-2 text-green-700 text-sm font-semibold">
+              <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
+              {authMode === 'oauth' ? 'Connected via OAuth' : 'Connected'}
             </div>
-          </label>
+            <button onClick={handleClear} className="text-xs text-brand-red hover:text-red-700 ml-4">Disconnect</button>
+          </div>
+          <ProgramList programs={programs} />
         </div>
       )}
 
