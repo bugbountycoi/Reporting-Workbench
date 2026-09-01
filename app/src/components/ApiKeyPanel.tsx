@@ -2,11 +2,12 @@ import { useState, useEffect } from 'react'
 import { setToken, clearToken, enableLocalStorage, disableLocalStorage } from '../auth/store'
 import { buildAuthUrl, exchangeCode, scheduleRefresh, cancelRefreshSchedule } from '../auth/oauth'
 import { getPrograms } from '../api/endpoints/programs'
-import { getMockMode, setMockMode } from '../config/api'
+import { getMockMode, setMockMode, getCacheMode, setCacheMode } from '../config/api'
+import { requestCacheFolder, readFromCache } from '../cache/manager'
 import type { ProgramOverviewViewModel } from '../api/types'
 
-type SourceMode = 'mock' | 'live'
-type LiveStep = 'token' | 'oauth' // which live auth form to show
+type SourceMode = 'mock' | 'cache' | 'live'
+type LiveStep = 'token' | 'oauth'
 
 function submissionsUrl(p: ProgramOverviewViewModel) {
   return `https://app.intigriti.com/company/programs/${p.companyHandle}/${p.handle}/submissions`
@@ -18,7 +19,7 @@ function ProgramList({ programs }: { programs: ProgramOverviewViewModel[] }) {
     <div className="border border-gray-100 rounded-lg overflow-hidden">
       <div className="bg-brand-near-white px-3 py-1.5 border-b border-gray-100 flex items-center justify-between">
         <span className="text-xs font-semibold text-brand-gray-dark uppercase tracking-wide">
-          Accessible Programs
+          Programs
         </span>
         <span className="text-xs text-brand-gray-mid font-medium">{programs.length}</span>
       </div>
@@ -52,7 +53,9 @@ interface Props {
 }
 
 export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Props) {
-  const [sourceMode, setSourceMode] = useState<SourceMode>(getMockMode() ? 'mock' : 'live')
+  const [sourceMode, setSourceMode] = useState<SourceMode>(
+    getMockMode() ? 'mock' : getCacheMode() ? 'cache' : 'live',
+  )
   const [liveStep, setLiveStep] = useState<LiveStep>('token')
   const [bearerInput, setBearerInput] = useState('')
   const [clientId, setClientId] = useState('')
@@ -85,26 +88,17 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
     setError(null)
     setBearerInput('')
 
-    if (mode === 'live') {
+    if (isConnected) {
+      // Switching while connected — clear everything and reload
       setMockMode(false)
-      if (isConnected) {
-        // Disconnect mock, clear any stored token, reload to the live token form
-        clearToken()
-        cancelRefreshSchedule()
-        disableLocalStorage()
-        window.location.reload()
-        return
-      }
-    } else {
-      if (isConnected) {
-        // Disconnect live, switch to mock
-        setMockMode(true)
-        clearToken()
-        cancelRefreshSchedule()
-        disableLocalStorage()
-        window.location.reload()
-        return
-      }
+      setCacheMode(false)
+      clearToken()
+      cancelRefreshSchedule()
+      disableLocalStorage()
+      if (mode === 'mock') setMockMode(true)
+      else if (mode === 'cache') setCacheMode(true)
+      window.location.reload()
+      return
     }
 
     setSourceMode(mode)
@@ -120,6 +114,27 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
     } catch (e) {
       setError(String(e))
       setMockMode(false)
+    } finally {
+      setTesting(false)
+    }
+  }
+
+  const handleSelectCacheFolder = async () => {
+    setError(null)
+    setTesting(true)
+    try {
+      await requestCacheFolder()
+      // Verify the folder has programs data before connecting
+      const programs = await readFromCache<unknown[]>('programs', 'global')
+      if (!programs || programs.length === 0) {
+        throw new Error('No cached programs found in this folder. Run the app in Live API mode first to populate the cache.')
+      }
+      setCacheMode(true)
+      await onConnected()
+    } catch (e) {
+      if ((e as Error).name !== 'AbortError') {
+        setError(String(e))
+      }
     } finally {
       setTesting(false)
     }
@@ -157,6 +172,7 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
 
   const handleClear = () => {
     setMockMode(false)
+    setCacheMode(false)
     clearToken()
     cancelRefreshSchedule()
     disableLocalStorage()
@@ -171,12 +187,19 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
   }
 
   const connectedViaMock = isConnected && getMockMode()
-  const connectedViaLive = isConnected && !getMockMode()
+  const connectedViaCache = isConnected && getCacheMode()
+  const connectedViaLive = isConnected && !getMockMode() && !getCacheMode()
+
+  const SOURCE_LABELS: Record<SourceMode, string> = {
+    mock: 'Mock Data',
+    cache: 'Local Cache',
+    live: 'Live API',
+  }
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm" data-no-print>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="font-heading font-semibold text-gray-900 text-base">API Connection</h2>
+        <h2 className="font-heading font-semibold text-gray-900 text-base">Data Source</h2>
         {onClose && (
           <button
             onClick={onClose}
@@ -189,11 +212,11 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
 
       {/* Data source toggle */}
       <div className="mb-4">
-        <p className="text-xs text-brand-gray-mid mb-1.5 font-medium uppercase tracking-wide">Data Source</p>
+        <p className="text-xs text-brand-gray-mid mb-1.5 font-medium uppercase tracking-wide">Source</p>
         <div className="flex gap-2">
-          {(['mock', 'live'] as SourceMode[]).map((mode) => {
+          {(['mock', 'cache', 'live'] as SourceMode[]).map((mode) => {
             const active = isConnected
-              ? (mode === 'mock' ? connectedViaMock : connectedViaLive)
+              ? (mode === 'mock' ? connectedViaMock : mode === 'cache' ? connectedViaCache : connectedViaLive)
               : sourceMode === mode
             return (
               <button
@@ -205,7 +228,7 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
-                {mode === 'mock' ? 'Mock Data' : 'Live API'}
+                {SOURCE_LABELS[mode]}
               </button>
             )
           })}
@@ -230,12 +253,45 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
 
       {/* Mock: connected */}
       {connectedViaMock && (
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 text-green-700 text-sm font-semibold">
-            <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
-            Connected — sample data
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 text-green-700 text-sm font-semibold">
+              <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
+              Connected — sample data
+            </div>
+            <button onClick={handleClear} className="text-xs text-brand-red hover:text-red-700 ml-4">Disconnect</button>
           </div>
-          <button onClick={handleClear} className="text-xs text-brand-red hover:text-red-700 ml-4">Disconnect</button>
+          <ProgramList programs={programs} />
+        </div>
+      )}
+
+      {/* Local Cache: not connected */}
+      {sourceMode === 'cache' && !isConnected && (
+        <div className="space-y-3">
+          <p className="text-xs text-brand-gray-mid">
+            Load from a folder of previously cached Intigriti data. No API token required. Run the app in Live API mode first to populate the cache.
+          </p>
+          <button
+            onClick={handleSelectCacheFolder}
+            disabled={testing}
+            className="px-4 py-2 bg-brand-navy text-white rounded-lg text-sm font-semibold hover:bg-brand-navy-light disabled:opacity-50 transition-colors"
+          >
+            {testing ? 'Loading…' : 'Select cache folder…'}
+          </button>
+        </div>
+      )}
+
+      {/* Local Cache: connected */}
+      {connectedViaCache && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 text-green-700 text-sm font-semibold">
+              <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
+              Connected — local cache
+            </div>
+            <button onClick={handleClear} className="text-xs text-brand-red hover:text-red-700 ml-4">Disconnect</button>
+          </div>
+          <ProgramList programs={programs} />
         </div>
       )}
 

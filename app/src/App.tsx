@@ -16,7 +16,7 @@ import { getPrograms } from './api/endpoints/programs'
 import { getAvailableReports } from './reports/registry'
 import type { ReportModule, ReportData, ReportParams, AppContext } from './reports/types'
 import type { ProgramOverviewViewModel } from './api/types'
-import { getMockMode } from './config/api'
+import { getMockMode, getCacheMode } from './config/api'
 import { saveWorkbenchConfig, loadWorkbenchConfig, type SavedModuleParams } from './config/savedConfig'
 
 const TOKEN_STORAGE_KEY = 'intigriti_workbench_token'
@@ -112,6 +112,9 @@ export default function App() {
       enableLocalStorage()
       handleConnected()
     } else if (getMockMode()) {
+      hasAutoConnected.current = true
+      handleConnected()
+    } else if (getCacheMode()) {
       hasAutoConnected.current = true
       handleConnected()
     }
