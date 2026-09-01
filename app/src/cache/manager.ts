@@ -1,4 +1,5 @@
 import { encrypt, decrypt } from './encryption'
+import { getCacheEncryptionKey } from './cacheConfig'
 
 export interface CacheFileEntry {
   filename: string
@@ -80,6 +81,14 @@ export async function loadCacheIndex(): Promise<CacheFileEntry[]> {
   }
 
   return entries.sort((a, b) => b.fetchedAt.localeCompare(a.fetchedAt))
+}
+
+export async function readFromCache<T>(endpoint: string, scope = 'global'): Promise<T | null> {
+  if (!_folderHandle) return null
+  const index = await loadCacheIndex()
+  const match = index.find((e) => e.scope === scope && e.endpoint === endpoint)
+  if (!match) return null
+  return loadCacheFile(match.filename, getCacheEncryptionKey()) as Promise<T>
 }
 
 export async function loadCacheFile(filename: string, passphrase?: string): Promise<unknown> {
