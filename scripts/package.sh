@@ -69,6 +69,7 @@ fi
 
 need zip
 need node
+need npm
 
 # Validate fixture data matches expected API shape before packaging
 echo "Validating fixture data..."
@@ -82,66 +83,37 @@ STAGING="$OUT/_staging/intigriti-reporting-workbench"
 
 echo "Packaging Intigriti Reporting Workbench v${VERSION}..."
 
+# ── Build the app ──────────────────────────────────────────────────────────────
+echo "Installing dependencies..."
+cd "$APP"
+npm ci --prefer-offline 2>&1 | tail -n1
+
+echo "Building..."
+npm run build 2>&1 | grep -E "^(vite|dist/|error)" || true
+[ -d "$APP/dist" ] || die "Build failed — dist/ not created."
+
+echo ""
+
 # Clean staging area
 rm -rf "$OUT/_staging"
-mkdir -p "$STAGING/app"
+mkdir -p "$STAGING"
 
-# Copy app source — exclude build artifacts and dev files
-cp -r "$APP/src"             "$STAGING/app/src"
-cp -r "$APP/public"          "$STAGING/app/public"
-cp    "$APP/package.json"    "$STAGING/app/package.json"
-cp    "$APP/package-lock.json" "$STAGING/app/package-lock.json" 2>/dev/null || true
-cp    "$APP/index.html"      "$STAGING/app/index.html"
-cp    "$APP/vite.config.ts"  "$STAGING/app/vite.config.ts"
-cp    "$APP/tsconfig.json"   "$STAGING/app/tsconfig.json"
-cp    "$APP/tailwind.config.js" "$STAGING/app/tailwind.config.js"
-cp    "$APP/postcss.config.js"  "$STAGING/app/postcss.config.js"
+# Copy built output only — no source code shipped
+cp -r "$APP/dist" "$STAGING/dist"
 
-# Copy docs
-cp "$APP/README.md"               "$STAGING/README.md"
-cp "$APP/REPORT_MODULE_GUIDE.md"  "$STAGING/REPORT_MODULE_GUIDE.md" 2>/dev/null || true
-
-# Copy packaging scripts
-mkdir -p "$STAGING/scripts"
-cp "$ROOT/scripts/package.sh" "$STAGING/scripts/package.sh"
-chmod +x "$STAGING/scripts/package.sh"
+# Copy server and docs
+cp "$ROOT/server.mjs"         "$STAGING/server.mjs"
+cp "$APP/README.md"           "$STAGING/README.md"
+cp "$APP/REPORT_MODULE_GUIDE.md" "$STAGING/REPORT_MODULE_GUIDE.md" 2>/dev/null || true
 
 # ── Start scripts ──────────────────────────────────────────────────────────────
 cat > "$STAGING/start.sh" << 'STARTSCRIPT'
 #!/usr/bin/env bash
 # Start the Intigriti Reporting Workbench
-set -e
-cd "$(dirname "$0")/app"
-if [ ! -d node_modules ]; then
-  echo "Installing dependencies (first run only)..."
-  npm install
-fi
-echo ""
-echo "  Starting Intigriti Reporting Workbench"
-echo "  Open → http://localhost:1337"
-echo "  Press Ctrl+C to stop"
-echo ""
-exec npm run dev
+cd "$(dirname "$0")"
+exec node server.mjs
 STARTSCRIPT
 chmod +x "$STAGING/start.sh"
-
-cat > "$STAGING/start-mock.sh" << 'MOCKSCRIPT'
-#!/usr/bin/env bash
-# Start the Intigriti Reporting Workbench in mock mode (no API key required)
-set -e
-cd "$(dirname "$0")/app"
-if [ ! -d node_modules ]; then
-  echo "Installing dependencies (first run only)..."
-  npm install
-fi
-echo ""
-echo "  Starting in mock mode — all reports use built-in sample data"
-echo "  Open → http://localhost:1337"
-echo "  Press Ctrl+C to stop"
-echo ""
-exec npm run dev:mock
-MOCKSCRIPT
-chmod +x "$STAGING/start-mock.sh"
 
 # ── Create zip ─────────────────────────────────────────────────────────────────
 # Strip macOS metadata before zipping
@@ -156,13 +128,10 @@ zip -r "$OUT/$ARCHIVE_NAME" "intigriti-reporting-workbench/" --quiet
 # Cleanup
 rm -rf "$OUT/_staging"
 
-echo ""
 echo "Package ready → dist/$ARCHIVE_NAME"
 echo ""
 echo "Contents:"
-echo "  start.sh                  — run the workbench (installs dependencies on first use)"
-echo "  start-mock.sh             — run with sample data, no API key needed"
-echo "  app/                      — source code"
-echo "  README.md                 — setup and usage guide"
-echo "  REPORT_MODULE_GUIDE.md    — guide to building custom report modules"
-echo "  scripts/package.sh        — packaging utilities for report modules"
+echo "  start.sh        — launch the workbench"
+echo "  server.mjs      — standalone Node.js server (no npm install required)"
+echo "  dist/           — built app (live and mock modes)"
+echo "  README.md       — setup and usage guide"
