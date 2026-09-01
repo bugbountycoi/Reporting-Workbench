@@ -1,0 +1,33 @@
+[
+  {
+    "id": "prog-alpha-001",
+    "handle": "acme-corp",
+    "companyId": "comp-001",
+    "companyHandle": "acme",
+    "logoUrl": null,
+    "name": "ACME Corp Bug Bounty",
+    "status": { "id": 1, "value": "Open" },
+    "confidentialityLevel": { "id": 2, "value": "Responsible Disclosure" },
+    "type": { "id": 1, "value": "Bug Bounty" },
+    "webLinks": { "details": "https://app.intigriti.com/programs/acme" },
+    "programBudget": {
+      "budgetLeft": { "value": 42000, "currency": "USD" },
+      "budgetSpent": { "value": 58000, "currency": "USD" },
+      "budgetInValidation": { "value": 3500, "currency": "USD" },
+      "budgetTotal": { "value": 100000, "currency": "USD" }
+    }
+  },
+  {
+    "id": "prog-beta-002",
+    "handle": "globex-vdp",
+    "companyId": "comp-002",
+    "companyHandle": "globex",
+    "logoUrl": null,
+    "name": "Globex VDP",
+    "status": { "id": 1, "value": "Open" },
+    "confidentialityLevel": { "id": 1, "value": "Public" },
+    "type": { "id": 2, "value": "VDP" },
+    "webLinks": { "details": "https://app.intigriti.com/programs/globex-vdp" },
+    "programBudget": null
+  }
+]

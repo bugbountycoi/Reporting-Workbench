@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+
+# Environment / secrets — never commit these
+.env
+.env.local
+.env.*.local
+
+# Brand kit fonts are copied into app/public/fonts/ and tracked there
+# Gitignoring the source copies to avoid 6MB of duplicates
+brand_kit/fonts/
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/settings.json
+*.swp
+*.swo
+
+# Vite / build caches
+.vite/
+*.tsbuildinfo
+
+# npm logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

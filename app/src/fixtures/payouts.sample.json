@@ -1,0 +1,46 @@
+[
+  {
+    "id": "pay-001",
+    "originators": { "programId": "prog-alpha-001", "pentestCode": null, "submissionCode": "INT-S-002", "rewardRequestId": null, "retestId": null },
+    "amount": { "value": 1500, "currency": "USD" },
+    "type": { "id": 1, "value": "Bounty" },
+    "researcher": { "userId": "res-002", "userName": "securefox", "avatarUrl": null, "role": null, "ranking": { "rank": 8, "reputation": 7800, "streak": { "id": 4, "value": "Legendary" } }, "identityChecked": true },
+    "status": { "id": 2, "value": "Paid" },
+    "createdAt": 1753660800,
+    "paidAt": 1753747200,
+    "lastUpdatedAt": 1753747200
+  },
+  {
+    "id": "pay-002",
+    "originators": { "programId": "prog-alpha-001", "pentestCode": null, "submissionCode": "INT-S-006", "rewardRequestId": null, "retestId": null },
+    "amount": { "value": 750, "currency": "USD" },
+    "type": { "id": 1, "value": "Bounty" },
+    "researcher": { "userId": "res-006", "userName": "testmaster", "avatarUrl": null, "role": null, "ranking": { "rank": 15, "reputation": 3300, "streak": { "id": 3, "value": "Hot" } }, "identityChecked": true },
+    "status": { "id": 2, "value": "Paid" },
+    "createdAt": 1753228800,
+    "paidAt": 1753315200,
+    "lastUpdatedAt": 1753315200
+  },
+  {
+    "id": "pay-003",
+    "originators": { "programId": "prog-alpha-001", "pentestCode": null, "submissionCode": "INT-S-010", "rewardRequestId": null, "retestId": null },
+    "amount": { "value": 600, "currency": "USD" },
+    "type": { "id": 1, "value": "Bounty" },
+    "researcher": { "userId": "res-010", "userName": "csrfpro", "avatarUrl": null, "role": null, "ranking": { "rank": 18, "reputation": 2900, "streak": { "id": 3, "value": "Hot" } }, "identityChecked": true },
+    "status": { "id": 1, "value": "Pending" },
+    "createdAt": 1752883200,
+    "paidAt": null,
+    "lastUpdatedAt": 1752883200
+  },
+  {
+    "id": "pay-004",
+    "originators": { "programId": "prog-alpha-001", "pentestCode": null, "submissionCode": "INT-S-001", "rewardRequestId": null, "retestId": null },
+    "amount": { "value": 5000, "currency": "USD" },
+    "type": { "id": 1, "value": "Bounty" },
+    "researcher": { "userId": "res-001", "userName": "hacker42", "avatarUrl": null, "role": null, "ranking": { "rank": 12, "reputation": 4200, "streak": { "id": 3, "value": "Hot" } }, "identityChecked": true },
+    "status": { "id": 3, "value": "In Validation" },
+    "createdAt": 1753747200,
+    "paidAt": null,
+    "lastUpdatedAt": 1753747200
+  }
+]
