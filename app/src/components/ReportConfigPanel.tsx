@@ -94,6 +94,14 @@ export function ReportConfigPanel({ report, programs, onGenerate, loading, initi
     })
   }
 
+  // Derive active shortcut by comparing current dates to each shortcut's computed values.
+  // Recomputed on every render so manual edits that happen to match a shortcut light it up too.
+  const currentStart = (params['startDate'] as string) ?? ''
+  const currentEnd = (params['endDate'] as string) ?? ''
+  const activeShortcut = DATE_SHORTCUTS.find(
+    (s) => s.start() === currentStart && s.end() === currentEnd,
+  )?.label ?? null
+
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4 space-y-4">
       {hasDateRange && (
@@ -102,15 +110,22 @@ export function ReportConfigPanel({ report, programs, onGenerate, loading, initi
             Quick date range
           </p>
           <div className="flex flex-wrap gap-1.5">
-            {DATE_SHORTCUTS.map((s) => (
-              <button
-                key={s.label}
-                onClick={() => applyShortcut(s)}
-                className="px-2.5 py-1 text-xs rounded-md border border-gray-200 bg-brand-near-white text-brand-gray-dark hover:border-brand-blue hover:text-brand-blue hover:bg-blue-50 transition-colors font-medium"
-              >
-                {s.label}
-              </button>
-            ))}
+            {DATE_SHORTCUTS.map((s) => {
+              const active = s.label === activeShortcut
+              return (
+                <button
+                  key={s.label}
+                  onClick={() => applyShortcut(s)}
+                  className={`px-2.5 py-1 text-xs rounded-md border transition-colors font-medium ${
+                    active
+                      ? 'bg-brand-navy text-white border-brand-navy'
+                      : 'border-gray-200 bg-brand-near-white text-brand-gray-dark hover:border-brand-blue hover:text-brand-blue hover:bg-blue-50'
+                  }`}
+                >
+                  {s.label}
+                </button>
+              )
+            })}
           </div>
         </div>
       )}
