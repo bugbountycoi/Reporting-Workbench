@@ -4,7 +4,7 @@ export const API_CONFIG = {
   authBaseUrl: 'https://login.intigriti.com',
   oauthAuthorizeUrl: 'https://login.intigriti.com/connect/authorize',
   oauthTokenUrl: 'https://login.intigriti.com/connect/token',
-  oauthRedirectUri: 'http://localhost:5173/oauth/callback',
+  oauthRedirectUri: `${window.location.origin}/oauth/callback`,
   defaultScopes: 'company_external_api core_platform:read reward_system:read offline_access',
   mockMode: import.meta.env.VITE_MOCK_MODE === 'true',
 } as const

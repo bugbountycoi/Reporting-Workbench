@@ -6,7 +6,7 @@ A local, private reporting tool for [Intigriti](https://www.intigriti.com/) API 
 > ```bash
 > cd app && npm install && npm run dev:mock
 > ```
-> Open **http://localhost:5173** and click any report to see it immediately.
+> Open **http://localhost:1337** and click any report to see it immediately.
 
 ---
 
@@ -57,7 +57,7 @@ cd intigriti-reporting-workbench
 ./start.sh
 ```
 
-Dependencies are installed automatically on the first run. Open **http://localhost:5173** in your browser.
+Dependencies are installed automatically on the first run. Open **http://localhost:1337** in your browser.
 
 ---
 
@@ -83,7 +83,7 @@ cd app
 npm run dev
 ```
 
-Open **http://localhost:5173**. You will see the **API Connection** panel — proceed to [Connect to your Intigriti account](#connect-to-your-intigriti-account).
+Open **http://localhost:1337**. You will see the **API Connection** panel — proceed to [Connect to your Intigriti account](#connect-to-your-intigriti-account).
 
 ---
 
@@ -127,8 +127,9 @@ Once connected, the panel collapses and a green **network icon** appears in the 
 
 1. In Intigriti **Admin › Integrations › Intigriti API**, create a connection with a redirect URI of:
    ```
-   http://localhost:5173/oauth/callback
+   http://localhost:1337/oauth/callback
    ```
+   If port 1337 was already in use when you started the server, it will have fallen back to port 31337 — use `http://localhost:31337/oauth/callback` instead. The workbench automatically uses whichever port it is actually running on.
 2. Note the **Client ID** and **Client Secret** (the secret is only shown once).
 3. In the workbench, select **OAuth 2.0**, enter your credentials, and click **Authorise with Intigriti**.
 4. You are redirected to Intigriti to sign in. After authorising, you are redirected back automatically.
@@ -386,7 +387,7 @@ Recipients who have Node.js installed can be up and running in under a minute:
 ```bash
 unzip intigriti-reporting-workbench-*.zip
 cd intigriti-reporting-workbench
-./start.sh         # installs deps + opens on http://localhost:5173
+./start.sh         # installs deps + opens on http://localhost:1337
 ```
 
 ---
@@ -438,7 +439,7 @@ scripts/
 | 401 Unauthorized | Your token has expired. Click the network icon → Disconnect → reconnect |
 | 403 Forbidden | Your token lacks the required API scope. Check your Intigriti API configuration |
 | 429 Too Many Requests | The API is rate-limiting. Wait a few seconds; the app retries automatically |
-| OAuth callback not working | Ensure the redirect URI in Intigriti admin exactly matches `http://localhost:5173/oauth/callback` |
+| OAuth callback not working | Ensure the redirect URI in Intigriti admin matches the port the server is actually on (`http://localhost:1337/oauth/callback` or `http://localhost:31337/oauth/callback` if 1337 was taken) |
 | Cache folder not appearing after page reload | The browser File System Access API requires re-selecting the folder each session. Use "Save Config" + re-select the folder after reload |
 | Encrypted cache files unreadable | You must provide the same passphrase used when the files were written |
 | Report module not showing after install | Check that you added the import and array entry to `src/reports/registry.ts` |

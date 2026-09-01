@@ -113,7 +113,7 @@ if [ ! -d node_modules ]; then
 fi
 echo ""
 echo "  Starting Intigriti Reporting Workbench"
-echo "  Open → http://localhost:5173"
+echo "  Open → http://localhost:1337"
 echo "  Press Ctrl+C to stop"
 echo ""
 exec npm run dev
@@ -131,7 +131,7 @@ if [ ! -d node_modules ]; then
 fi
 echo ""
 echo "  Starting in mock mode — all reports use built-in sample data"
-echo "  Open → http://localhost:5173"
+echo "  Open → http://localhost:1337"
 echo "  Press Ctrl+C to stop"
 echo ""
 exec npm run dev:mock
