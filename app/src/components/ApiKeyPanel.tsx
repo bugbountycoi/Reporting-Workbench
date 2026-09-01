@@ -6,6 +6,10 @@ import type { ProgramOverviewViewModel } from '../api/types'
 
 type AuthMode = 'bearer' | 'oauth'
 
+function submissionsUrl(p: ProgramOverviewViewModel) {
+  return `https://app.intigriti.com/company/programs/${p.companyHandle}/${p.handle}/submissions`
+}
+
 function ProgramList({ programs }: { programs: ProgramOverviewViewModel[] }) {
   if (programs.length === 0) return null
   return (
@@ -21,9 +25,15 @@ function ProgramList({ programs }: { programs: ProgramOverviewViewModel[] }) {
           <div key={p.id} className="flex items-center justify-between px-3 py-2">
             <span className="text-sm text-gray-800">{p.name}</span>
             {p.status?.value && (
-              <span className="text-xs text-brand-gray-mid bg-gray-100 px-2 py-0.5 rounded-full ml-2 shrink-0">
+              <a
+                href={submissionsUrl(p)}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={`Open ${p.name} submissions dashboard`}
+                className="text-xs text-brand-gray-mid bg-gray-100 hover:bg-brand-blue hover:text-white px-2 py-0.5 rounded-full ml-2 shrink-0 transition-colors cursor-pointer"
+              >
                 {p.status.value}
-              </span>
+              </a>
             )}
           </div>
         ))}
@@ -36,9 +46,10 @@ interface Props {
   onConnected: () => void
   isConnected: boolean
   programs: ProgramOverviewViewModel[]
+  onClose?: () => void
 }
 
-export function ApiKeyPanel({ onConnected, isConnected, programs }: Props) {
+export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Props) {
   const [authMode, setAuthMode] = useState<AuthMode>('bearer')
   const [bearerInput, setBearerInput] = useState('')
   const [clientId, setClientId] = useState('')
@@ -49,7 +60,6 @@ export function ApiKeyPanel({ onConnected, isConnected, programs }: Props) {
   const [localStorageEnabled, setLocalStorageEnabled] = useState(false)
   const [testing, setTesting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [collapsed, setCollapsed] = useState(false)
 
   useEffect(() => {
     const handler = async (e: Event) => {
@@ -110,24 +120,20 @@ export function ApiKeyPanel({ onConnected, isConnected, programs }: Props) {
     else disableLocalStorage()
   }
 
-  if (isConnected && collapsed) {
-    return (
-      <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-lg">
-        <div className="w-2 h-2 rounded-full bg-green-500" />
-        <span className="text-sm text-green-800 font-semibold">Connected to Intigriti API</span>
-        <span className="text-xs text-green-600">· {programs.length} program{programs.length !== 1 ? 's' : ''} accessible</span>
-        <button onClick={() => setCollapsed(false)} className="ml-auto text-xs text-brand-gray-mid hover:text-gray-700 underline">Edit</button>
-        <button onClick={handleClear} className="text-xs text-brand-red hover:text-red-700">Disconnect</button>
-      </div>
-    )
-  }
-
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm" data-no-print>
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-heading font-semibold text-gray-900 text-base">API Connection</h2>
-        {isConnected && (
-          <button onClick={() => setCollapsed(true)} className="text-xs text-brand-gray-mid hover:text-gray-600">Collapse</button>
+        {onClose && (
+          <button
+            onClick={onClose}
+            title="Dismiss panel"
+            className="text-brand-gray-mid hover:text-gray-700 transition-colors p-1 -mr-1"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         )}
       </div>
 
@@ -137,7 +143,6 @@ export function ApiKeyPanel({ onConnected, isConnected, programs }: Props) {
         </div>
       )}
 
-      {/* Auth mode toggle */}
       <div className="flex gap-2 mb-4">
         {(['bearer', 'oauth'] as AuthMode[]).map((mode) => (
           <button
@@ -237,7 +242,6 @@ export function ApiKeyPanel({ onConnected, isConnected, programs }: Props) {
         </div>
       )}
 
-      {/* Remember on device */}
       {!isConnected && (
         <div className="mt-4 pt-4 border-t border-gray-100">
           <label className="flex items-start gap-2 cursor-pointer">

@@ -1,6 +1,11 @@
 import type { ReactNode } from 'react'
 
-export function AppShell({ children }: { children: ReactNode }) {
+interface Props {
+  children: ReactNode
+  headerActions?: ReactNode
+}
+
+export function AppShell({ children, headerActions }: Props) {
   return (
     <div className="min-h-screen bg-brand-near-white">
       <header className="bg-brand-navy text-white shadow-md" data-no-print>
@@ -15,15 +20,18 @@ export function AppShell({ children }: { children: ReactNode }) {
           <span className="font-heading font-semibold text-sm text-white/90 tracking-wide">
             Reporting Workbench
           </span>
-          <div className="ml-auto text-xs text-white/40 font-body">Local · Client-side only</div>
+          <div className="ml-auto flex items-center gap-2">
+            {headerActions}
+          </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {children}
-      </main>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">{children}</main>
 
-      <footer className="text-center text-xs text-brand-gray-mid py-6 mt-8 border-t border-brand-gray-light font-body" data-no-print>
+      <footer
+        className="text-center text-xs text-brand-gray-mid py-6 mt-8 border-t border-brand-gray-light font-body"
+        data-no-print
+      >
         Intigriti Reporting Workbench — data stays on your device &amp; goes only to the Intigriti API.
       </footer>
     </div>

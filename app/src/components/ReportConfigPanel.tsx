@@ -8,6 +8,8 @@ interface Props {
   programs: ProgramOverviewViewModel[]
   onGenerate: (params: ReportParams) => void
   loading: boolean
+  initialParams?: ReportParams
+  onParamsChange?: (params: ReportParams) => void
 }
 
 function today() {
@@ -47,7 +49,7 @@ const DATE_SHORTCUTS: { label: string; start: () => string; end: () => string }[
   { label: 'All time', start: () => '2015-01-01', end: today },
 ]
 
-export function ReportConfigPanel({ report, programs, onGenerate, loading }: Props) {
+export function ReportConfigPanel({ report, programs, onGenerate, loading, initialParams, onParamsChange }: Props) {
   const hasProgramSelect = report.paramFields.some((f) => f.type === 'programSelect')
 
   const [params, setParams] = useState<ReportParams>(() => {
@@ -55,13 +57,19 @@ export function ReportConfigPanel({ report, programs, onGenerate, loading }: Pro
     for (const field of report.paramFields) {
       if (field.defaultValue !== undefined) defaults[field.key] = field.defaultValue
     }
-    if (hasProgramSelect) {
+    if (hasProgramSelect && !initialParams?.programIds) {
       defaults['programIds'] = programs.map((p) => p.id)
     }
-    return defaults
+    return { ...defaults, ...(initialParams ?? {}) }
   })
 
-  const set = (key: string, value: unknown) => setParams((p) => ({ ...p, [key]: value }))
+  const set = (key: string, value: unknown) => {
+    setParams((p) => {
+      const next = { ...p, [key]: value }
+      onParamsChange?.(next)
+      return next
+    })
+  }
 
   const hasDateRange =
     report.paramFields.some((f) => f.key === 'startDate') &&
@@ -79,7 +87,11 @@ export function ReportConfigPanel({ report, programs, onGenerate, loading }: Pro
     })
 
   const applyShortcut = (shortcut: (typeof DATE_SHORTCUTS)[number]) => {
-    setParams((p) => ({ ...p, startDate: shortcut.start(), endDate: shortcut.end() }))
+    setParams((p) => {
+      const next = { ...p, startDate: shortcut.start(), endDate: shortcut.end() }
+      onParamsChange?.(next)
+      return next
+    })
   }
 
   return (
