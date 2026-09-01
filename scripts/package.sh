@@ -78,7 +78,13 @@ echo ""
 
 VERSION="${2:-$(node -p "require('$APP/package.json').version" 2>/dev/null || date +%Y%m%d)}"
 STAMP="$(date +%Y%m%d)"
-ARCHIVE_NAME="intigriti-reporting-workbench-${VERSION}-${STAMP}.zip"
+
+# Incremental counter — find the highest existing run for this version+date and go one higher
+mkdir -p "$OUT"
+EXISTING=$(ls "$OUT"/intigriti-reporting-workbench-"${VERSION}"-"${STAMP}"-*.zip 2>/dev/null \
+  | sed -E 's/.*-([0-9]+)\.zip$/\1/' | sort -n | tail -1)
+SEQ=$(printf "%03d" $(( ${EXISTING:-0} + 1 )))
+ARCHIVE_NAME="intigriti-reporting-workbench-${VERSION}-${STAMP}-${SEQ}.zip"
 STAGING="$OUT/_staging/intigriti-reporting-workbench"
 
 echo "Packaging Intigriti Reporting Workbench v${VERSION}..."
@@ -120,8 +126,6 @@ chmod +x "$STAGING/start.sh"
 find "$STAGING" -name ".DS_Store" -delete
 find "$STAGING" -name "__MACOSX" -exec rm -rf {} + 2>/dev/null || true
 
-mkdir -p "$OUT"
-rm -f "$OUT/$ARCHIVE_NAME"
 cd "$OUT/_staging"
 zip -r "$OUT/$ARCHIVE_NAME" "intigriti-reporting-workbench/" --quiet
 
