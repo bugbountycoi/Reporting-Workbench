@@ -6,7 +6,7 @@ A local, private reporting tool for [Intigriti](https://www.intigriti.com/) API 
 > ```bash
 > cd app && npm install && npm run dev:mock
 > ```
-> Open **http://localhost:1337** and click any report to see it immediately.
+> Open **http://localhost:5173** and click any report to see it immediately.
 
 ---
 
@@ -15,8 +15,8 @@ A local, private reporting tool for [Intigriti](https://www.intigriti.com/) API 
 - [Requirements](#requirements)
 - [Install](#install)
 - [Run the tool](#run-the-tool)
-- [Connect to your Intigriti account](#connect-to-your-intigriti-account)
-- [Generate reports with your own data](#generate-reports-with-your-own-data)
+- [Choose a data source](#choose-a-data-source)
+- [Generate reports](#generate-reports)
 - [Save your configuration](#save-your-configuration)
 - [Local data cache](#local-data-cache)
 - [Build a new report module](#build-a-new-report-module)
@@ -53,15 +53,38 @@ npm --version    # should print 9.x.x or higher
 
 ### Option A — from a release zip
 
-If someone gave you a `.zip` file:
+If someone gave you a `.zip` file, unzip it and launch with the script for your platform:
 
+**macOS / Linux**
 ```bash
 unzip intigriti-reporting-workbench-*.zip
 cd intigriti-reporting-workbench
 ./start.sh
 ```
 
-Dependencies are installed automatically on the first run. Open **http://localhost:1337** in your browser.
+**Windows (Command Prompt)**
+```
+double-click start.bat
+```
+or from CMD:
+```
+cd intigriti-reporting-workbench
+start.bat
+```
+
+**Windows (PowerShell)**
+
+PowerShell may block unsigned scripts by default. If `start.ps1` is blocked, run this once to allow local scripts:
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+```
+Then:
+```powershell
+cd intigriti-reporting-workbench
+.\start.ps1
+```
+
+Open **http://localhost:1337** in your browser after the server starts.
 
 ---
 
@@ -73,23 +96,18 @@ cd Reporting-Workbench/app
 npm install
 ```
 
-> **Screenshot: terminal after `npm install` completes**
-> *(add a screenshot here showing a clean install with no errors)*
-
 ---
 
 ## Run the tool
 
-### With your live Intigriti data
+### Development server (source install)
 
 ```bash
 cd app
 npm run dev
 ```
 
-Open **http://localhost:1337**. You will see the **API Connection** panel — proceed to [Connect to your Intigriti account](#connect-to-your-intigriti-account).
-
----
+Opens at **http://localhost:5173**.
 
 ### With built-in sample data (no API key)
 
@@ -100,67 +118,68 @@ npm run dev:mock
 
 All reports load instantly from bundled fixture data. Use this to explore the tool, develop new modules, or demo the workbench without credentials.
 
-> **Screenshot: the workbench home screen in mock mode**
-> *(shows the header bar, Cache Folder and Encryption panels, mock mode banner, and report tile grid)*
-
 ---
 
-## Connect to your Intigriti account
+## Choose a data source
 
-The **API Connection** panel is shown automatically when the tool starts. Two authentication modes are available.
+The **Data Source** panel is shown automatically when the tool starts. Three modes are available:
 
-### Bearer token (recommended for individual use)
+### Mock Data
+
+Click **Mock Data** to connect instantly using built-in fixture data. No Intigriti account or API key required. Ideal for exploring the tool or developing report modules.
+
+### Local Cache
+
+Click **Local Cache** to load data from a folder previously populated by the workbench during a Live API session. No internet connection or API key is needed at load time — data is served entirely from disk.
+
+1. Click **Local Cache** — a folder picker opens immediately.
+2. Navigate to the folder you used as your cache folder in a previous session.
+3. If the folder contains valid cached data, the workbench connects and shows your programs.
+
+The Data Source panel shows how recent the cached data is after connecting.
+
+> If the folder has no cached data, connect via **Live API** first and enable the Cache Folder (see [Local data cache](#local-data-cache)).
+
+### Live API
+
+Click **Live API** to connect to your live Intigriti data. Two authentication modes are available:
+
+#### Bearer token (recommended for individual use)
 
 1. Log in to Intigriti.
 2. Go to **Admin › Integrations › Intigriti API**.
 3. Create a new API connection. Select **non-expiring** for a token that persists without re-authentication.
 4. Copy the generated Bearer token.
-5. In the workbench, select **Bearer Token**, paste your token, and click **Test & Connect**.
+5. In the workbench, paste your token into the **Bearer Token** field and click **Validate & Connect**.
 
-> **Screenshot: the API Connection panel in Bearer Token mode**
-> *(shows the password input field and "Test & Connect" button)*
+Once connected, a green dot and your accessible programs appear in the panel.
 
-Once connected, the panel collapses and a green **network icon** appears in the header bar. The programs accessible with your token are listed inside the panel (click the icon to expand it again).
+#### OAuth 2.0 (for teams or programmatic use)
 
-> **Screenshot: the header bar after connecting**
-> *(shows the green network icon, gray folder and lock icons, and the "Save Config" button)*
-
----
-
-### OAuth 2.0 (for teams or programmatic use)
-
-1. In Intigriti **Admin › Integrations › Intigriti API**, create a connection with a redirect URI of:
+1. In Intigriti **Admin › Integrations › Intigriti API**, create a connection with a redirect URI matching your server port, e.g.:
    ```
    http://localhost:1337/oauth/callback
    ```
-   If port 1337 was already in use when you started the server, it will have fallen back to port 31337 — use `http://localhost:31337/oauth/callback` instead. The workbench automatically uses whichever port it is actually running on.
+   The workbench displays the exact URL to use in the Data Source panel after you start the server.
 2. Note the **Client ID** and **Client Secret** (the secret is only shown once).
-3. In the workbench, select **OAuth 2.0**, enter your credentials, and click **Authorise with Intigriti**.
+3. In the workbench, click **Use OAuth 2.0 instead →**, enter your credentials, and click **Authorise with Intigriti**.
 4. You are redirected to Intigriti to sign in. After authorising, you are redirected back automatically.
 
----
+#### Remember your token across sessions
 
-### Remember your token across sessions
-
-Enable **Remember on this device** before connecting. This stores your token in browser localStorage so the workbench reconnects automatically next time you open it.
+Enable **Remember on this device** before connecting. This stores your token in browser localStorage so the workbench reconnects automatically next time.
 
 > **Security warning:** browser localStorage is unencrypted. Do not enable this on shared, public, or untrusted devices.
 
 ---
 
-## Generate reports with your own data
+## Generate reports
 
 After connecting, the report tile grid appears beneath the header.
-
-> **Screenshot: the report tile grid**
-> *(shows four report cards: Daily Triage Movement, Weekly Triage Summary, Bounty Budget Overview, Submission Status Snapshot, and Raw API Explorer)*
 
 ### Select a report
 
 Click any report tile to open it. A **sample preview** loads immediately from bundled data so you can see the chart and table layout before generating live data.
-
-> **Screenshot: Daily Triage Movement with sample preview**
-> *(shows the config panel with program selector and date range, the "Sample Preview" badge, a bar chart, and the data table)*
 
 ### Configure parameters
 
@@ -170,15 +189,9 @@ Click any report tile to open it. A **sample preview** loads immediately from bu
    - **Combine** — merges all program data into a single dataset
    - **Compare** — plots each program as a separate series on the chart
 
-> **Screenshot: program selector with multiple programs chosen and Compare mode active**
-> *(shows the multi-select list with checkboxes, the Compare/Combine toggle, and the chart showing separate colored series per program)*
-
 ### Generate the report
 
-Click **Generate Report**. The workbench fetches data from the Intigriti API and renders the full report.
-
-> **Screenshot: a completed live report**
-> *(shows summary cards at the top, a line chart, and the data table with real program data)*
+Click **Generate Report**. The workbench fetches data (from the API, cache, or fixtures depending on your data source) and renders the full report.
 
 ### Export the report
 
@@ -201,10 +214,7 @@ Click the **same tile** again to collapse the report panel and see only the tile
 
 ## Save your configuration
 
-Click **Save Config** in the header bar to persist your report settings to browser storage. The next time you open the workbench (or restart the dev server), your program selections and date ranges are restored automatically after you connect.
-
-> **Screenshot: the "Save Config" button in the header bar**
-> *(shows the button before and after clicking, with the "Saved!" confirmation)*
+Click **Save Config** in the header bar to persist your report settings to browser storage. The next time you open the workbench, your program selections and date ranges are restored automatically after you connect.
 
 > Program selections are stored as **position indices** (1, 2, 3 …) rather than program names or IDs, so no identifiable program data is written to browser storage.
 
@@ -212,16 +222,13 @@ Click **Save Config** in the header bar to persist your report settings to brows
 
 ## Local data cache
 
-The workbench can save API responses to a folder on your disk. Cached data is used for instant repeat runs and historical look-back without hitting the API again.
+The workbench can save API responses to a folder on your disk. Cached data enables instant repeat runs, offline reporting via **Local Cache** mode, and historical look-back without hitting the API again.
 
 ### Enable the cache
 
-After connecting, click the **folder icon** in the header bar to open the **Cache Folder** panel.
+After connecting via **Live API**, click the **folder icon** in the header bar to open the **Cache Folder** panel. Click **Select cache folder…**, choose a local directory, and confirm.
 
-> **Screenshot: the Cache Folder panel**
-> *(shows the "Select cache folder…" button and the security warning)*
-
-Click **Select cache folder…**, choose a local directory, and confirm. Once selected, the panel collapses and the folder icon turns green.
+Once a folder is active, the panel shows an index of all cached files: endpoint, scope, age, size, and whether the file is encrypted. Use **Refresh** to reload the index after running reports.
 
 > Cache files may contain sensitive vulnerability data. Store them on a trusted, private device.
 
@@ -235,8 +242,9 @@ Click the **lock icon** in the header bar to open the **Encryption** panel. Thre
 | **Use API token** | AES-256-GCM encryption keyed to your API token. Anyone with your token can decrypt. |
 | **Custom passphrase** | Strongest option. You must provide the same passphrase to read cached files back. |
 
-> **Screenshot: the Encryption panel with "Custom passphrase" selected**
-> *(shows the passphrase input and "Set Key" button)*
+### Using cached data offline
+
+Once you have cache files, switch to **Local Cache** in the Data Source panel and select the same folder. The workbench loads all data from disk — no API key or internet connection required.
 
 ---
 
@@ -301,9 +309,6 @@ const ALL_MODULES: ReportModule[] = [
 
 The report card appears immediately in the workbench — no restart needed.
 
-> **Screenshot: a custom module appearing in the report grid**
-> *(shows the newly added tile card alongside the built-in reports)*
-
 ### 4. Test without an API key
 
 ```bash
@@ -316,7 +321,7 @@ Click your report tile. The `samplePreview` renders immediately. Click **Generat
 
 ## Package a module for sharing
 
-Once your report module is working, create a shareable zip so others can drop it into their workbench:
+Once your report module is working, create a shareable zip:
 
 ```bash
 cd app
@@ -324,9 +329,6 @@ npm run package:module -- dailyTriageMovement
 ```
 
 This creates `dist/inti-module-dailyTriageMovement.zip` containing just the `src/reports/dailyTriageMovement/` directory.
-
-> **Screenshot: terminal output of `npm run package:module`**
-> *(shows the "Module packaged →" success line and the output path)*
 
 Send the `.zip` file to whoever needs it. They install it in one command — see below.
 
@@ -342,9 +344,6 @@ npm run install:module -- /path/to/inti-module-myReport.zip
 ```
 
 The module is extracted into `src/reports/`. The command prints exactly what to add to `registry.ts`.
-
-> **Screenshot: terminal output of `npm run install:module`**
-> *(shows the extracted path and the two lines to add to registry.ts)*
 
 Then follow the printed instructions:
 
@@ -364,7 +363,7 @@ Reload the workbench — the new report card appears in the grid.
 
 ## Package a full release
 
-To bundle the entire workbench (source + docs + start scripts) into a zip for distribution:
+To bundle the entire workbench into a self-contained zip for distribution:
 
 ```bash
 cd app
@@ -377,22 +376,24 @@ Or from the project root:
 bash scripts/package.sh
 ```
 
-Output: `dist/intigriti-reporting-workbench-<version>-<date>.zip`
+Each run auto-increments the build number and produces a file like:
 
-The zip contains:
-- `start.sh` — double-click or run to launch (installs npm dependencies on first use)
-- `start-mock.sh` — launch in mock mode, no API key needed
-- `app/` — full source code
-- `README.md` and `REPORT_MODULE_GUIDE.md`
-- `scripts/package.sh` — module packaging utility
-
-Recipients who have Node.js installed can be up and running in under a minute:
-
-```bash
-unzip intigriti-reporting-workbench-*.zip
-cd intigriti-reporting-workbench
-./start.sh         # installs deps + opens on http://localhost:1337
 ```
+dist/intigriti-reporting-workbench-0.2.005.zip
+```
+
+The zip contains only the pre-built app — no source code:
+
+| File | Purpose |
+|---|---|
+| `start.sh` | Launch on macOS / Linux |
+| `start.bat` | Launch on Windows (CMD / double-click) |
+| `start.ps1` | Launch on Windows (PowerShell) |
+| `server.mjs` | Standalone Node.js server — no `npm install` required |
+| `dist/` | Pre-built app (all three data source modes included) |
+| `README.md` | This file |
+
+Recipients who have Node.js installed can be up and running in under a minute.
 
 ---
 
@@ -402,10 +403,10 @@ cd intigriti-reporting-workbench
 |---|---|
 | API token never logged | Redacted from all `console.*` calls; filtered from error messages |
 | API token never in exports | `data-no-print` attribute hides credential panels in PDF/print output; token excluded from CSV/JSON exports |
-| API token only sent to Intigriti | Vite dev-server proxy forwards requests only to `app.intigriti.com` |
+| API token only sent to Intigriti | Dev-server proxy and standalone server forward requests only to `api.intigriti.com` |
 | Token not stored unless you opt in | `enableLocalStorage()` is only called when the user explicitly checks "Remember on this device" |
 | Program data not stored in config | Saved config uses 1-based position indices, not program IDs or names |
-| CORS handled locally | No third-party proxy — the Vite server runs on your machine |
+| CORS handled locally | No third-party proxy — the server runs on your machine |
 
 ---
 
@@ -418,7 +419,7 @@ app/
     auth/         In-memory token store and OAuth 2.0 flow
     cache/        File System Access API integration and AES-256-GCM encryption
     components/   Shared React UI components (panels, charts, tables, export)
-    config/       API base URL, mock mode flag, and config persistence
+    config/       API base URL, mock/cache mode flags, and config persistence
     fixtures/     Bundled sample JSON for mock mode and sample previews
     reports/      Report module definitions and central registry
     utils/        Date helpers, CSV export, image capture, secret redaction
@@ -430,6 +431,8 @@ app/
 
 scripts/
   package.sh      Release packaging and module install/export utilities
+
+server.mjs        Standalone production server (no npm install needed)
 ```
 
 ---
@@ -438,13 +441,15 @@ scripts/
 
 | Problem | Fix |
 |---|---|
-| `npm run dev` throws "command not found" | Install Node.js 18+ (includes npm): [nodejs.org/en/download](https://nodejs.org/en/download) |
-| "Network error" or "Failed to fetch" | The Vite dev server must be running — CORS is handled by the local proxy |
+| `npm run dev` throws "command not found" | Install Node.js 18+: [nodejs.org/en/download](https://nodejs.org/en/download) |
+| "Network error" or "Failed to fetch" | The server must be running — CORS is handled by the local proxy |
 | 401 Unauthorized | Your token has expired. Click the network icon → Disconnect → reconnect |
 | 403 Forbidden | Your token lacks the required API scope. Check your Intigriti API configuration |
 | 429 Too Many Requests | The API is rate-limiting. Wait a few seconds; the app retries automatically |
-| OAuth callback not working | Ensure the redirect URI in Intigriti admin matches the port the server is actually on (`http://localhost:1337/oauth/callback` or `http://localhost:31337/oauth/callback` if 1337 was taken) |
-| Cache folder not appearing after page reload | The browser File System Access API requires re-selecting the folder each session. Use "Save Config" + re-select the folder after reload |
+| OAuth callback not working | Ensure the redirect URI in Intigriti admin exactly matches the port the server is running on |
+| `start.ps1` blocked on Windows | Run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` in PowerShell once, then retry |
+| Cache folder not appearing after reload | The File System Access API requires re-selecting the folder each session |
 | Encrypted cache files unreadable | You must provide the same passphrase used when the files were written |
+| Local Cache: "no cached programs found" | Connect via Live API first with a cache folder active, then run at least one report |
 | Report module not showing after install | Check that you added the import and array entry to `src/reports/registry.ts` |
-| TypeScript error after installing a module | Run `npm install` if the module has new dependencies listed in a `package.json` inside the zip |
+| TypeScript error after installing a module | Run `npm install` if the module has new dependencies listed in its zip |
