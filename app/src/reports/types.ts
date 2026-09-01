@@ -20,6 +20,8 @@ export interface ChartConfig {
   xLabel?: string
   yLabel?: string
   series: ChartSeries[]
+  /** Subset of chart types the user may switch to. Pie/circle/donut are never allowed. Defaults to ['bar','stackedBar','line']. */
+  allowedChartTypes?: Array<'bar' | 'stackedBar' | 'line'>
 }
 
 export interface ExportConfig {
