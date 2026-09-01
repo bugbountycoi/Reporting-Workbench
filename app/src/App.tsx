@@ -58,7 +58,7 @@ export default function App() {
   const [programs, setPrograms] = useState<ProgramOverviewViewModel[]>([])
   const [selectedReport, setSelectedReport] = useState<ReportModule | null>(null)
   const [configPanelOpen, setConfigPanelOpen] = useState(true)
-  const [reportData, setReportData] = useState<ReportData | null>(null)
+  const [moduleDataCache, setModuleDataCache] = useState<Record<string, ReportData>>({})
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showSamplePreview, setShowSamplePreview] = useState(true)
@@ -134,10 +134,23 @@ export default function App() {
       return
     }
     setSelectedReport(report)
-    setReportData(null)
-    setShowSamplePreview(true)
+    setShowSamplePreview(!moduleDataCache[report.id])
     setError(null)
     setConfigPanelOpen(true)
+  }
+
+  const handleSelectPreview = (report: ReportModule) => {
+    setSelectedReport(report)
+    setShowSamplePreview(true)
+    setConfigPanelOpen(true)
+    setError(null)
+  }
+
+  const handleSelectMyData = (report: ReportModule) => {
+    setSelectedReport(report)
+    setShowSamplePreview(false)
+    setConfigPanelOpen(true)
+    setError(null)
   }
 
   const handleGenerateReport = async (params: ReportParams) => {
@@ -149,7 +162,7 @@ export default function App() {
       const paramsWithContext = { ...params, programs }
       const raw = await selectedReport.fetchData(paramsWithContext)
       const data = selectedReport.transform(raw, paramsWithContext)
-      setReportData(data)
+      setModuleDataCache((prev) => ({ ...prev, [selectedReport.id]: data }))
     } catch (e) {
       setError(String(e))
     } finally {
@@ -179,7 +192,9 @@ export default function App() {
     setTimeout(() => setSaveLabel(null), 2500)
   }
 
-  const activeData = showSamplePreview && selectedReport ? selectedReport.samplePreview : reportData
+  const activeData = showSamplePreview && selectedReport
+    ? selectedReport.samplePreview
+    : (selectedReport ? moduleDataCache[selectedReport.id] ?? null : null)
 
   const anyConfigPanelOpen =
     panelsOpen.api || (isConnected && (panelsOpen.cache || panelsOpen.encryption))
@@ -279,6 +294,9 @@ export default function App() {
               reports={availableReports}
               selectedId={selectedReport?.id ?? null}
               onSelect={handleSelectReport}
+              onSelectPreview={handleSelectPreview}
+              onSelectMyData={handleSelectMyData}
+              moduleDataCache={moduleDataCache}
             />
           </section>
 

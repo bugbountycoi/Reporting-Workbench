@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import type { ReportModule, ReportParams } from '../reports/types'
 import type { ProgramOverviewViewModel } from '../api/types'
 import { ProgramMultiSelect } from './ProgramMultiSelect'
@@ -64,12 +64,14 @@ export function ReportConfigPanel({ report, programs, onGenerate, loading, initi
   })
 
   const set = (key: string, value: unknown) => {
-    setParams((p) => {
-      const next = { ...p, [key]: value }
-      onParamsChange?.(next)
-      return next
-    })
+    setParams((p) => ({ ...p, [key]: value }))
   }
+
+  const mountedRef = useRef(false)
+  useEffect(() => {
+    if (!mountedRef.current) { mountedRef.current = true; return }
+    onParamsChange?.(params)
+  }, [params]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const hasDateRange =
     report.paramFields.some((f) => f.key === 'startDate') &&
@@ -87,11 +89,7 @@ export function ReportConfigPanel({ report, programs, onGenerate, loading, initi
     })
 
   const applyShortcut = (shortcut: (typeof DATE_SHORTCUTS)[number]) => {
-    setParams((p) => {
-      const next = { ...p, startDate: shortcut.start(), endDate: shortcut.end() }
-      onParamsChange?.(next)
-      return next
-    })
+    setParams((p) => ({ ...p, startDate: shortcut.start(), endDate: shortcut.end() }))
   }
 
   // Derive active shortcut by comparing current dates to each shortcut's computed values.
