@@ -76,18 +76,27 @@ echo "Validating fixture data..."
 node "$ROOT/scripts/validate-fixtures.js" || die "Fixture validation failed — fix errors above before releasing."
 echo ""
 
-VERSION="${2:-$(node -p "require('$APP/package.json').version" 2>/dev/null || date +%Y%m%d)}"
-STAMP="$(date +%Y%m%d)"
+# Auto-increment the patch digit in package.json — it is the build counter.
+# Each packaging run bumps 0.2.4 → 0.2.5 → 0.2.6 etc.
+CURRENT=$(node -p "require('$APP/package.json').version")
+MAJOR=$(echo "$CURRENT" | cut -d. -f1)
+MINOR=$(echo "$CURRENT" | cut -d. -f2)
+PATCH=$(echo "$CURRENT" | cut -d. -f3)
+NEW_PATCH=$(( PATCH + 1 ))
+VERSION="${MAJOR}.${MINOR}.${NEW_PATCH}"
+DISPLAY="${MAJOR}.${MINOR}.$(printf "%03d" $NEW_PATCH)"
 
-# Incremental counter — find the highest existing run for this version+date and go one higher
-mkdir -p "$OUT"
-EXISTING=$(ls "$OUT"/intigriti-reporting-workbench-"${VERSION}"-"${STAMP}"-*.zip 2>/dev/null \
-  | sed -E 's/.*-([0-9]+)\.zip$/\1/' | sort -n | tail -1)
-SEQ=$(printf "%03d" $(( ${EXISTING:-0} + 1 )))
-ARCHIVE_NAME="intigriti-reporting-workbench-${VERSION}-${STAMP}-${SEQ}.zip"
+node -e "
+  const fs = require('fs');
+  const p = JSON.parse(fs.readFileSync('$APP/package.json', 'utf8'));
+  p.version = '$VERSION';
+  fs.writeFileSync('$APP/package.json', JSON.stringify(p, null, 2) + '\n');
+"
+
+ARCHIVE_NAME="intigriti-reporting-workbench-${DISPLAY}.zip"
 STAGING="$OUT/_staging/intigriti-reporting-workbench"
 
-echo "Packaging Intigriti Reporting Workbench v${VERSION}..."
+echo "Packaging Intigriti Reporting Workbench v${DISPLAY}..."
 
 # ── Build the app ──────────────────────────────────────────────────────────────
 echo "Installing dependencies..."
