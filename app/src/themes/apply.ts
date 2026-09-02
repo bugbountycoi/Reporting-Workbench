@@ -1,7 +1,7 @@
 import type { ThemeSpec, ThemeColors } from './types'
 import { getActiveThemeId, resolveTheme, setActiveThemeId } from './store'
 
-const COLOR_VAR_MAP: Record<keyof ThemeColors, string> = {
+export const COLOR_VAR_MAP: Record<keyof ThemeColors, string> = {
   navy:      '--brand-navy',
   navyLight: '--brand-navy-light',
   navyMid:   '--brand-navy-mid',

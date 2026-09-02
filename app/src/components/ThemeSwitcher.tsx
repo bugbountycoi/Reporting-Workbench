@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { useTheme } from '../themes/ThemeProvider'
 import { ThemeLoadError } from '../themes/loader'
 import type { ThemeSpec } from '../themes/types'
+import { ThemeEditor } from './ThemeEditor'
 
 function PaletteIcon({ className }: { className?: string }) {
   return (
@@ -33,7 +34,13 @@ export function ThemeSwitcher() {
   const [urlValue, setUrlValue] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [editorTheme, setEditorTheme] = useState<ThemeSpec | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  const openEditor = (theme: ThemeSpec) => {
+    setOpen(false)
+    setEditorTheme(theme)
+  }
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -89,7 +96,7 @@ export function ThemeSwitcher() {
 
           <div className="max-h-64 overflow-y-auto divide-y divide-gray-50">
             {allThemes.map((spec) => (
-              <div key={spec.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 group">
+              <div key={spec.id} className="flex items-center gap-2 px-4 py-2.5 hover:bg-gray-50 group">
                 <button
                   onClick={() => { setActiveTheme(spec); setOpen(false) }}
                   className="flex items-center gap-3 flex-1 text-left min-w-0"
@@ -100,6 +107,14 @@ export function ThemeSwitcher() {
                     <span className="ml-auto text-brand-blue shrink-0">✓</span>
                   )}
                 </button>
+                <button
+                  onClick={() => openEditor(spec)}
+                  className="hidden group-hover:block text-xs text-gray-400 hover:text-brand-blue shrink-0 transition-colors px-1"
+                  title={builtinIds.has(spec.id) ? 'Fork & edit this theme' : 'Edit theme'}
+                  aria-label={`Edit theme ${spec.name}`}
+                >
+                  Edit
+                </button>
                 {!builtinIds.has(spec.id) && (
                   <button
                     onClick={() => {
@@ -108,7 +123,7 @@ export function ThemeSwitcher() {
                         if (activeTheme.id === spec.id) setActiveTheme(allThemes[0])
                       }
                     }}
-                    className="hidden group-hover:block text-gray-300 hover:text-red-500 shrink-0 transition-colors text-xs"
+                    className="hidden group-hover:block text-gray-300 hover:text-red-500 shrink-0 transition-colors text-xs px-1"
                     title="Remove theme"
                     aria-label={`Remove theme ${spec.name}`}
                   >
@@ -123,6 +138,14 @@ export function ThemeSwitcher() {
             {error && (
               <p className="text-xs text-red-600 bg-red-50 rounded p-2 leading-snug">{error}</p>
             )}
+
+            <button
+              onClick={() => openEditor(activeTheme)}
+              disabled={busy}
+              className="w-full text-xs font-semibold text-brand-blue hover:text-brand-blue-dark border border-brand-blue/30 hover:border-brand-blue rounded-md px-3 py-1.5 transition-colors"
+            >
+              Create theme from current →
+            </button>
 
             {urlInputOpen ? (
               <div className="space-y-1.5">
@@ -173,6 +196,13 @@ export function ThemeSwitcher() {
 
           <input ref={fileRef} type="file" accept=".json" className="hidden" onChange={handleFileChange} />
         </div>
+      )}
+
+      {editorTheme && (
+        <ThemeEditor
+          initialTheme={editorTheme}
+          onClose={() => setEditorTheme(null)}
+        />
       )}
     </div>
   )
