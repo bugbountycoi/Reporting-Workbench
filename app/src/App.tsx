@@ -21,6 +21,7 @@ import { addUserModuleSpec, deleteUserModuleSpec, replaceUserModuleSpec } from '
 import { ReportBuilder } from './components/ReportBuilder'
 import type { ProgramOverviewViewModel } from './api/types'
 import { getMockMode, getCacheMode } from './config/api'
+import { DisclaimerModal, isDisclaimerAccepted } from './components/DisclaimerModal'
 import { saveWorkbenchConfig, loadWorkbenchConfig, type SavedModuleParams } from './config/savedConfig'
 
 const TOKEN_STORAGE_KEY = 'intigriti_workbench_token'
@@ -59,6 +60,7 @@ function SaveIcon({ className }: { className?: string }) {
 
 export default function App() {
   const [appState, setAppState] = useState<'setup' | 'connected'>('setup')
+  const [disclaimerAccepted, setDisclaimerAccepted] = useState(isDisclaimerAccepted)
   const [programs, setPrograms] = useState<ProgramOverviewViewModel[]>([])
   const [selectedReport, setSelectedReport] = useState<ReportModule | null>(null)
   const [configPanelOpen, setConfigPanelOpen] = useState(true)
@@ -343,6 +345,10 @@ export default function App() {
       </button>
     </>
   ) : null
+
+  if (!disclaimerAccepted) {
+    return <DisclaimerModal onAccept={() => setDisclaimerAccepted(true)} />
+  }
 
   return (
     <AppShell headerActions={headerActions}>
