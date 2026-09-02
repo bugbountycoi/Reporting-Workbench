@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { requestCacheFolder, loadCacheIndex, type CacheFileEntry } from '../cache/manager'
 import { cacheConfig } from '../cache/cacheConfig'
 import { formatDistanceToNow } from 'date-fns'
+import { safeLog } from '../utils/redaction'
 
 interface Props {
   onFolderSelected: () => void
@@ -56,7 +57,7 @@ export function CacheFolderPanel({ onFolderSelected, onClose }: Props) {
       onFolderSelected()
     } catch (e) {
       if ((e as Error).name !== 'AbortError') {
-        console.warn('Folder selection failed:', (e as Error).message)
+        safeLog('warn', 'Folder selection failed:', (e as Error).message)
       }
     } finally {
       setSelecting(false)
