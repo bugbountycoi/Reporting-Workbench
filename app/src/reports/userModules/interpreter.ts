@@ -13,8 +13,7 @@ import { apiGet } from '../../api/client'
 import { bucketKey, allBuckets, INTERVAL_OPTIONS } from '../../utils/intervals'
 import { daysBetween } from '../../utils/dates'
 import type { ProgramOverviewViewModel } from '../../api/types'
-
-const COMPARE_COLORS = ['#4C59A8', '#02A87C', '#F03157', '#E0AC00', '#7BCFDB', '#E99C4A', '#575865']
+import { BRAND_COMPARE_COLORS } from '../../themes/brandColors'
 
 const EMPTY_REPORT_DATA: ReportData = {
   rows: [],
@@ -35,7 +34,7 @@ const TRANSFORM_CTX: TransformCtx = {
   bucketKey: (ts, interval) => bucketKey(ts, interval as import('../../utils/intervals').Interval),
   allBuckets: (start, end, interval) => allBuckets(start, end, interval as import('../../utils/intervals').Interval),
   daysBetween,
-  COMPARE_COLORS,
+  COMPARE_COLORS: BRAND_COMPARE_COLORS,
   INTERVAL_OPTIONS,
 }
 
