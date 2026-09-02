@@ -122,7 +122,7 @@ export const submissionStatusSnapshot: ReportModule = {
     return results.flat()
   },
 
-  transform: transformData,
+  transform: async (raw, params) => transformData(raw, params),
 
   tableColumns: [
     { accessorKey: 'status', header: 'Status' },
@@ -138,7 +138,7 @@ export const submissionStatusSnapshot: ReportModule = {
     series: [{ key: 'count', label: 'Submissions', color: BC.blue }],
   },
 
-  summaryFormatter(data) {
+  async summaryFormatter(data) {
     const [total, open] = data.summaryCards
     return `${total.value} total submissions, ${open.value} currently open.`
   },

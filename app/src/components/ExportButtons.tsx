@@ -28,7 +28,7 @@ export function ExportButtons({ report, data, chartElementId }: Props) {
   }
 
   const handleCopy = async () => {
-    const summary = report.summaryFormatter(data)
+    const summary = await report.summaryFormatter(data)
     await navigator.clipboard.writeText(summary)
     setCopying(true)
     setTimeout(() => setCopying(false), 1500)

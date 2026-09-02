@@ -149,7 +149,7 @@ export const weeklyTriageSummary: ReportModule = {
     return results.flat()
   },
 
-  transform: transformData,
+  transform: async (raw, params) => transformData(raw, params),
 
   tableColumns: [
     { accessorKey: 'period', header: 'Period' },
@@ -174,7 +174,7 @@ export const weeklyTriageSummary: ReportModule = {
     ],
   },
 
-  summaryFormatter(data) {
+  async summaryFormatter(data) {
     const cards = data.summaryCards
     return `Total received: ${cards[0].value}. Accepted: ${cards[1].value}.`
   },

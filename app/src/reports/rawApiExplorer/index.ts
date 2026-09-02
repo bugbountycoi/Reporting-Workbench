@@ -70,13 +70,13 @@ export const rawApiExplorer: ReportModule = {
     return { data, status: 200, duration, endpoint: `/v2${endpoint}` }
   },
 
-  transform: transformData,
+  transform: async (raw, params) => transformData(raw, params),
 
   tableColumns: [],
 
   chartConfig: null,
 
-  summaryFormatter(data) {
+  async summaryFormatter(data) {
     const [ep, status, duration, records] = data.summaryCards
     return `${ep.value} → ${status.value} in ${duration.value}. ${records.value} record(s) returned.`
   },

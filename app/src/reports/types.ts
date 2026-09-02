@@ -66,10 +66,10 @@ export interface ReportModule {
   isAvailable: (ctx: AppContext) => boolean
   paramFields: ParamField[]
   fetchData: (params: ReportParams) => Promise<unknown>
-  transform: (raw: unknown, params: ReportParams) => ReportData
+  transform: (raw: unknown, params: ReportParams) => Promise<ReportData>
   tableColumns: ColumnDef<Record<string, unknown>>[]
   chartConfig: ChartConfig | null
-  summaryFormatter: (data: ReportData) => string
+  summaryFormatter: (data: ReportData) => Promise<string>
   exportConfig: ExportConfig
   sampleData: unknown
   samplePreview: ReportData

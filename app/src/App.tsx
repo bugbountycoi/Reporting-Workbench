@@ -203,7 +203,7 @@ export default function App() {
     try {
       const paramsWithContext = { ...params, programs }
       const raw = await selectedReport.fetchData(paramsWithContext)
-      const data = selectedReport.transform(raw, paramsWithContext)
+      const data = await selectedReport.transform(raw, paramsWithContext)
       setModuleDataCache((prev) => ({ ...prev, [selectedReport.id]: data }))
     } catch (e) {
       setError(String(e))

@@ -175,7 +175,7 @@ export const dailyTriageMovement: ReportModule = {
     return results.flat()
   },
 
-  transform: transformData,
+  transform: async (raw, params) => transformData(raw, params),
 
   tableColumns: [
     { accessorKey: 'period', header: 'Period' },
@@ -200,7 +200,7 @@ export const dailyTriageMovement: ReportModule = {
     ],
   },
 
-  summaryFormatter(data) {
+  async summaryFormatter(data) {
     const cards = data.summaryCards
     return `Received ${cards[0].value} submissions. Net queue change: ${cards[3].value}.`
   },

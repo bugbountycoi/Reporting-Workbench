@@ -176,7 +176,7 @@ export const bountyBudgetOverview: ReportModule = {
     return { payouts, programDetails }
   },
 
-  transform: transformData,
+  transform: async (raw, params) => transformData(raw, params),
 
   tableColumns: [
     { accessorKey: 'severity', header: 'Severity' },
@@ -194,7 +194,7 @@ export const bountyBudgetOverview: ReportModule = {
     series: [{ key: 'total', label: 'Amount Awarded', color: BC.blue }],
   },
 
-  summaryFormatter(data) {
+  async summaryFormatter(data) {
     const [total, count, avg, budget] = data.summaryCards
     return `Awarded ${total.value} across ${count.value} submissions (avg ${avg.value}). Budget remaining: ${budget.value}.`
   },

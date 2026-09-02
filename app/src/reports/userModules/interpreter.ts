@@ -3,17 +3,15 @@
  * All user-created AND bundled modules run through this interpreter.
  */
 import type { ReportModule, ReportData, ReportParams, ParamField } from '../types'
-import type { UserModuleSpec, FetchCtx, TransformCtx } from './types'
+import type { UserModuleSpec, FetchCtx } from './types'
 import { specChartConfig } from './types'
 import { declarativeTransform } from './transform'
 import { getProgramSubmissions } from '../../api/endpoints/programs'
 import { getAllPayouts } from '../../api/endpoints/payouts'
 import { getProgramDetail } from '../../api/endpoints/programs'
 import { apiGet } from '../../api/client'
-import { bucketKey, allBuckets, INTERVAL_OPTIONS } from '../../utils/intervals'
-import { daysBetween } from '../../utils/dates'
+import { INTERVAL_OPTIONS } from '../../utils/intervals'
 import type { ProgramOverviewViewModel } from '../../api/types'
-import { BRAND_COMPARE_COLORS } from '../../themes/brandColors'
 
 const EMPTY_REPORT_DATA: ReportData = {
   rows: [],
@@ -24,18 +22,6 @@ const EMPTY_REPORT_DATA: ReportData = {
     { label: 'Closed', value: 0 },
     { label: 'Open', value: 0 },
   ],
-}
-
-// ---------------------------------------------------------------------------
-// Context objects passed to custom JS functions
-// ---------------------------------------------------------------------------
-
-const TRANSFORM_CTX: TransformCtx = {
-  bucketKey: (ts, interval) => bucketKey(ts, interval as import('../../utils/intervals').Interval),
-  allBuckets: (start, end, interval) => allBuckets(start, end, interval as import('../../utils/intervals').Interval),
-  daysBetween,
-  COMPARE_COLORS: BRAND_COMPARE_COLORS,
-  INTERVAL_OPTIONS,
 }
 
 function buildFetchCtx(): FetchCtx {
@@ -52,33 +38,53 @@ function buildFetchCtx(): FetchCtx {
 // Custom function execution helpers
 // ---------------------------------------------------------------------------
 
+// Spawns a short-lived Worker to run custom transform or summaryFormatter code.
+// Workers have no access to the parent page's localStorage, sessionStorage, or DOM.
+function runInWorker<T>(
+  type: 'transform' | 'summaryFormatter',
+  body: string,
+  args: unknown[],
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const worker = new Worker(new URL('./moduleWorker.ts', import.meta.url), { type: 'module' })
+    const idBytes = new Uint8Array(8)
+    crypto.getRandomValues(idBytes)
+    const id = Array.from(idBytes, (b) => b.toString(16).padStart(2, '0')).join('')
+    const timer = setTimeout(() => {
+      worker.terminate()
+      reject(new Error('Custom module timed out after 10 s'))
+    }, 10_000)
+    worker.onmessage = (e: MessageEvent) => {
+      if (e.data.id !== id) return
+      clearTimeout(timer)
+      worker.terminate()
+      if (e.data.ok) resolve(e.data.result as T)
+      else reject(new Error(e.data.error as string))
+    }
+    worker.onerror = (e) => {
+      clearTimeout(timer)
+      worker.terminate()
+      reject(new Error(e.message))
+    }
+    worker.postMessage({ id, type, body, args })
+  })
+}
+
+// Global names shadowed before executing customFetchData in the main thread.
+// customFetchData must stay in the main thread so it can use the API ctx functions,
+// but we prevent it from reading locally-stored credentials.
+const FETCH_GLOBALS_SHADOW = [
+  'const localStorage = undefined, sessionStorage = undefined,',
+  '      indexedDB = undefined, caches = undefined,',
+  '      window = undefined, document = undefined,',
+  '      navigator = undefined, location = undefined;',
+].join('\n')
+
 // Runs a custom fetch body: async (params, ctx) => unknown
 async function runCustomFetch(body: string, params: ReportParams): Promise<unknown> {
   const fetchCtx = buildFetchCtx()
-  // Wrap in async IIFE so `await` works inside the function body string
-  const fn = new Function('params', 'ctx', `return (async function() { ${body} })()`)
+  const fn = new Function('params', 'ctx', `return (async function() {\n${FETCH_GLOBALS_SHADOW}\n${body}\n})()`)
   return fn(params, fetchCtx) as Promise<unknown>
-}
-
-// Runs a custom transform body: (raw, params, programs, ctx) => ReportData
-function runCustomTransform(
-  body: string,
-  raw: unknown,
-  params: ReportParams,
-  programs: ProgramOverviewViewModel[],
-): ReportData {
-  const fn = new Function('raw', 'params', 'programs', 'ctx', body)
-  return fn(raw, params, programs, TRANSFORM_CTX) as ReportData
-}
-
-// Runs a custom summary formatter body: (data) => string
-function runCustomSummaryFormatter(body: string, data: ReportData): string {
-  try {
-    const fn = new Function('data', body)
-    return String(fn(data))
-  } catch {
-    return ''
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -129,10 +135,10 @@ function computeSamplePreview(spec: UserModuleSpec, programs: ProgramOverviewVie
     programs,
   }
 
+  // customTransform runs in a Worker (async) — return empty for the card preview.
+  // The full result is computed when the user clicks Preview.
+  if (spec.customTransform) return EMPTY_REPORT_DATA
   try {
-    if (spec.customTransform) {
-      return runCustomTransform(spec.customTransform, raw, params, programs)
-    }
     return declarativeTransform(raw, params as Record<string, unknown>, programs, spec)
   } catch {
     return EMPTY_REPORT_DATA
@@ -190,9 +196,9 @@ export function specToModule(spec: UserModuleSpec, programs: ProgramOverviewView
       getCsvRows: (data) => data.rows,
     },
 
-    summaryFormatter(data: ReportData): string {
+    async summaryFormatter(data: ReportData): Promise<string> {
       if (spec.customSummaryFormatter) {
-        return runCustomSummaryFormatter(spec.customSummaryFormatter, data)
+        return runInWorker<string>('summaryFormatter', spec.customSummaryFormatter, [data])
       }
       const first = data.summaryCards[0]
       return first ? `${first.label}: ${first.value}` : ''
@@ -219,9 +225,9 @@ export function specToModule(spec: UserModuleSpec, programs: ProgramOverviewView
       }
     },
 
-    transform(raw: unknown, params: ReportParams): ReportData {
+    async transform(raw: unknown, params: ReportParams): Promise<ReportData> {
       if (spec.customTransform) {
-        return runCustomTransform(spec.customTransform, raw, params, programs)
+        return runInWorker<ReportData>('transform', spec.customTransform, [raw, params, programs])
       }
       return declarativeTransform(raw, params as Record<string, unknown>, programs, spec)
     },
