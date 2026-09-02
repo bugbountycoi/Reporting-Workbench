@@ -126,6 +126,29 @@ cat > "$STAGING/start.sh" << 'STARTSCRIPT'
 #!/usr/bin/env bash
 # Start the Intigriti Reporting Workbench
 cd "$(dirname "$0")"
+
+if ! command -v node &>/dev/null; then
+  echo ""
+  echo "  Node.js is not installed."
+  echo ""
+  echo "  Install it from:  https://nodejs.org  (LTS recommended)"
+  echo ""
+  echo "  Or use a version manager:"
+  echo "    macOS / Linux:  https://github.com/nvm-sh/nvm"
+  echo "    Windows:        https://github.com/coreybutler/nvm-windows"
+  echo ""
+  exit 1
+fi
+
+NODE_MAJOR="$(node -e 'process.stdout.write(process.version.split(".")[0].slice(1))')"
+if [ "$NODE_MAJOR" -lt 18 ]; then
+  echo ""
+  echo "  Node.js v$NODE_MAJOR is installed, but v18 or later is required."
+  echo "  Download the latest LTS from:  https://nodejs.org"
+  echo ""
+  exit 1
+fi
+
 exec node server.mjs
 STARTSCRIPT
 chmod +x "$STAGING/start.sh"
@@ -133,12 +156,60 @@ chmod +x "$STAGING/start.sh"
 cat > "$STAGING/start.bat" << 'STARTBAT'
 @echo off
 cd /d "%~dp0"
+
+where node >nul 2>&1
+if %errorlevel% neq 0 (
+  echo.
+  echo   Node.js is not installed.
+  echo.
+  echo   Install it from:  https://nodejs.org  ^(LTS recommended^)
+  echo.
+  echo   Or via winget:    winget install OpenJS.NodeJS.LTS
+  echo.
+  pause
+  exit /b 1
+)
+
+for /f "tokens=*" %%v in ('node -e "process.stdout.write(process.version.split(\".\")[0].slice(1))"') do set NODE_MAJOR=%%v
+if %NODE_MAJOR% lss 18 (
+  echo.
+  echo   Node.js v%NODE_MAJOR% is installed, but v18 or later is required.
+  echo   Download the latest LTS from:  https://nodejs.org
+  echo.
+  pause
+  exit /b 1
+)
+
 node server.mjs
 pause
 STARTBAT
 
 cat > "$STAGING/start.ps1" << 'STARTPS1'
 Set-Location $PSScriptRoot
+
+if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
+  Write-Host ""
+  Write-Host "  Node.js is not installed."
+  Write-Host ""
+  Write-Host "  Install it from:  https://nodejs.org  (LTS recommended)"
+  Write-Host ""
+  Write-Host "  Or via winget:    winget install OpenJS.NodeJS.LTS"
+  Write-Host "  Or via choco:     choco install nodejs-lts"
+  Write-Host ""
+  Read-Host "Press Enter to exit"
+  exit 1
+}
+
+$nodeMajor = [int](node -e 'process.stdout.write(process.version.split(".")[0].slice(1))')
+if ($nodeMajor -lt 18) {
+  Write-Host ""
+  Write-Host "  Node.js v$nodeMajor is installed, but v18 or later is required."
+  Write-Host "  Download the latest LTS from:  https://nodejs.org"
+  Write-Host ""
+  Read-Host "Press Enter to exit"
+  exit 1
+}
+
 node server.mjs
 STARTPS1
 
