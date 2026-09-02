@@ -17,7 +17,8 @@ import { getAvailableReports, getSpecById } from './reports/registry'
 import type { ReportModule, ReportData, ReportParams, AppContext } from './reports/types'
 import type { UserModuleSpec } from './reports/userModules/types'
 import { isUserModuleSpec } from './reports/userModules/types'
-import { addUserModuleSpec, deleteUserModuleSpec } from './reports/userModules/store'
+import { addUserModuleSpec, deleteUserModuleSpec, replaceUserModuleSpec } from './reports/userModules/store'
+import { ReportBuilder } from './components/ReportBuilder'
 import type { ProgramOverviewViewModel } from './api/types'
 import { getMockMode, getCacheMode } from './config/api'
 import { saveWorkbenchConfig, loadWorkbenchConfig, type SavedModuleParams } from './config/savedConfig'
@@ -268,6 +269,17 @@ export default function App() {
     setBuilderOpen(true)
   }
 
+  const handleSaveModule = (spec: UserModuleSpec) => {
+    if (editingSpec) {
+      replaceUserModuleSpec(spec)
+    } else {
+      addUserModuleSpec(spec)
+    }
+    setBuilderOpen(false)
+    setEditingSpec(null)
+    forceRefresh((n) => n + 1)
+  }
+
   const handleSaveConfig = () => {
     const moduleParams: Record<string, SavedModuleParams> = {}
     for (const [reportId, params] of Object.entries(moduleParamsCache)) {
@@ -411,17 +423,12 @@ export default function App() {
             />
 
             {builderOpen ? (
-              <div className="rounded-xl border border-brand-blue bg-blue-50 p-6 text-center text-brand-blue font-medium text-sm">
-                Report Builder
-                {editingSpec ? ` — editing "${editingSpec.title}"` : ' — new module'}
-                <br />
-                <button
-                  onClick={() => setBuilderOpen(false)}
-                  className="mt-3 text-xs text-gray-500 hover:underline"
-                >
-                  Cancel
-                </button>
-              </div>
+              <ReportBuilder
+                initialSpec={editingSpec}
+                programs={programs}
+                onSave={handleSaveModule}
+                onCancel={() => { setBuilderOpen(false); setEditingSpec(null) }}
+              />
             ) : (
               <ReportSelector
                 reports={availableReports}
