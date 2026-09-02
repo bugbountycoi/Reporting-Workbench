@@ -49,7 +49,7 @@ export function isThemeSpec(value: unknown): value is ThemeSpec {
     'grayDark', 'grayMid', 'grayLight', 'offWhite', 'nearWhite',
   ]
   for (const key of requiredColors) {
-    if (typeof c[key] !== 'string') return false
+    if (!/^#[0-9A-Fa-f]{6}$/.test(c[key] as string)) return false
   }
   const f = v.fonts as Record<string, unknown>
   if (typeof f.heading !== 'string' || typeof f.body !== 'string') return false
