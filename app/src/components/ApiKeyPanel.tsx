@@ -228,9 +228,9 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
     window.location.reload()
   }
 
-  const handleLocalStorageToggle = (val: boolean) => {
+  const handleLocalStorageToggle = async (val: boolean) => {
     setLocalStorageEnabled(val)
-    if (val) enableLocalStorage()
+    if (val) await enableLocalStorage()
     else disableLocalStorage()
   }
 
@@ -447,7 +447,7 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
                   <div>
                     <span className="text-sm text-gray-700 font-semibold">Remember on this device</span>
                     <p className="text-xs text-brand-red mt-0.5">
-                      Insecure: stores your token in browser localStorage. Do not enable on shared or untrusted devices.
+                      Stores an encrypted copy of your token in localStorage. The decryption key is session-scoped and cleared when you close this tab — closing the browser protects the stored data. Do not enable on shared or untrusted devices.
                     </p>
                   </div>
                 </label>
