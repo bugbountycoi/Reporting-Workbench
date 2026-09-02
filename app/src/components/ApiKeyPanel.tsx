@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { setToken, clearToken, enableLocalStorage, disableLocalStorage } from '../auth/store'
 import { buildAuthUrl, exchangeCode, scheduleRefresh, cancelRefreshSchedule } from '../auth/oauth'
 import { getPrograms } from '../api/endpoints/programs'
-import { getMockMode, setMockMode, getCacheMode, setCacheMode, getActiveApiVersion, setActiveApiVersion } from '../config/api'
+import { getMockMode, setMockMode, getCacheMode, setCacheMode, getActiveApiVersion, setActiveApiVersion, API_CONFIG } from '../config/api'
 import { probeApiVersions, selectBestVersion, type VersionProbeResult } from '../api/versions'
 import { requestCacheFolder, readFromCache, loadCacheIndex } from '../cache/manager'
 import { cacheConfig } from '../cache/cacheConfig'
@@ -431,6 +431,15 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
 
           {liveStep === 'oauth' && (
             <>
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-800">
+                <p className="font-semibold mb-1">Required: register this Redirect URI in your Intigriti OAuth app</p>
+                <code className="block font-mono bg-white border border-amber-200 rounded px-2 py-1 text-xs break-all select-all text-gray-800">
+                  {API_CONFIG.oauthRedirectUri}
+                </code>
+                <p className="mt-1.5 text-amber-700">
+                  In Intigriti: Admin → Integrations → OAuth Applications → your app → Redirect URIs
+                </p>
+              </div>
               <input
                 type="text"
                 placeholder="Client ID"
