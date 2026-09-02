@@ -366,7 +366,15 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
       {!isConnected && sourceMode === 'live' && (
         <div className="space-y-3">
           <p className="text-xs text-brand-gray-mid">
-            An API token from your Intigriti admin panel is required to access your live data.
+            An API token from your Intigriti admin panel is required to access your live data.{' '}
+            <a
+              href="https://kb.intigriti.com/en/articles/6117846-intigriti-api"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-brand-blue hover:underline"
+            >
+              How to get an API key →
+            </a>
           </p>
 
           {liveStep === 'token' && (
