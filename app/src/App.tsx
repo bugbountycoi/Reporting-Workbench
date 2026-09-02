@@ -24,7 +24,8 @@ import type { ProgramOverviewViewModel } from './api/types'
 import { getMockMode, getCacheMode } from './config/api'
 import { DisclaimerModal, isDisclaimerAccepted } from './components/DisclaimerModal'
 import { ThemeSwitcher } from './components/ThemeSwitcher'
-import { saveWorkbenchConfig, loadWorkbenchConfig, type SavedModuleParams } from './config/savedConfig'
+import { saveWorkbenchConfig, loadWorkbenchConfig, type SavedModuleParams, type SavedSettings } from './config/savedConfig'
+import { cacheConfig } from './cache/cacheConfig'
 
 const TOKEN_STORAGE_KEY = 'intigriti_workbench_token'
 
@@ -124,6 +125,12 @@ export default function App() {
           restored[reportId] = { ...rest, programIds: resolvedIds }
         }
         setModuleParamsCache(restored)
+
+        if (saved.settings) {
+          cacheConfig.encryptionMode = saved.settings.encryptionMode
+          if (saved.settings.encryptionMode !== 'none') setEncryptionConfigured(true)
+          setPanelsOpen(saved.settings.panelsOpen)
+        }
       }
     } catch (e) {
       setError(String(e))
@@ -335,7 +342,11 @@ export default function App() {
       }
       moduleParams[reportId] = { ...clean, programIndices } as SavedModuleParams
     }
-    saveWorkbenchConfig({ version: 1, moduleParams, savedAt: new Date().toISOString() })
+    const settings: SavedSettings = {
+      encryptionMode: cacheConfig.encryptionMode,
+      panelsOpen,
+    }
+    saveWorkbenchConfig({ version: 1, settings, moduleParams, savedAt: new Date().toISOString() })
     setSaveLabel('Saved!')
     setTimeout(() => setSaveLabel(null), 2500)
   }

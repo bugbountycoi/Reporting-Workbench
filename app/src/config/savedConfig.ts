@@ -8,8 +8,14 @@ export interface SavedModuleParams {
   [key: string]: unknown
 }
 
+export interface SavedSettings {
+  encryptionMode: 'none' | 'apiKey' | 'custom'
+  panelsOpen: { api: boolean; cache: boolean; encryption: boolean }
+}
+
 export interface SavedConfig {
   version: number
+  settings?: SavedSettings
   moduleParams: Record<string, SavedModuleParams>
   savedAt: string
 }
