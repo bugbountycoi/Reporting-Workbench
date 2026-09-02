@@ -3,8 +3,7 @@ import { getProgramSubmissions } from '../../api/endpoints/programs'
 import type { SubmissionOverviewViewModel } from '../../api/types'
 import { bucketKey, allBuckets, INTERVAL_OPTIONS, type Interval } from '../../utils/intervals'
 import { sampleSubmissions } from '../dailyTriageMovement/fixtures'
-
-const COMPARE_COLORS = ['#4C59A8', '#02A87C', '#F03157', '#E0AC00', '#7BCFDB', '#E99C4A', '#575865']
+import { BC, BRAND_COMPARE_COLORS } from '../../themes/brandColors'
 
 function buildRows(
   submissions: SubmissionOverviewViewModel[],
@@ -93,7 +92,7 @@ function transformData(raw: unknown, params: ReportParams): ReportData {
       series: programIds.map((id, i) => ({
         key: id,
         label: programList.find((p) => p.id === id)?.name ?? id,
-        color: COMPARE_COLORS[i % COMPARE_COLORS.length],
+        color: BRAND_COMPARE_COLORS[i % BRAND_COMPARE_COLORS.length],
       })),
     }
 
@@ -168,10 +167,10 @@ export const weeklyTriageSummary: ReportModule = {
     yLabel: 'Count',
     allowedChartTypes: ['bar', 'stackedBar', 'line'],
     series: [
-      { key: 'received', label: 'Received', color: '#4C59A8' },
-      { key: 'accepted', label: 'Accepted', color: '#10B981' },
-      { key: 'rejected', label: 'Rejected', color: '#EF4444' },
-      { key: 'duplicate', label: 'Duplicate', color: '#F59E0B' },
+      { key: 'received', label: 'Received', color: BC.blue },
+      { key: 'accepted', label: 'Accepted', color: BC.green },
+      { key: 'rejected', label: 'Rejected', color: BC.red },
+      { key: 'duplicate', label: 'Duplicate', color: BC.gold },
     ],
   },
 

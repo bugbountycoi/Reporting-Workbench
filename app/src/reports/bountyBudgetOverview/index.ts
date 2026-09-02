@@ -4,8 +4,7 @@ import { getAllPayouts } from '../../api/endpoints/payouts'
 import type { PayoutViewModel } from '../../api/types'
 import { bucketKey, INTERVAL_OPTIONS, type Interval } from '../../utils/intervals'
 import payoutsSample from '../../fixtures/payouts.sample.json'
-
-const COMPARE_COLORS = ['#4C59A8', '#02A87C', '#F03157', '#E0AC00', '#7BCFDB', '#E99C4A', '#575865']
+import { BC, BRAND_COMPARE_COLORS } from '../../themes/brandColors'
 
 type ProgramBudget = {
   budgetLeft?: { value: number; currency: string }
@@ -109,7 +108,7 @@ function transformData(raw: unknown, params: ReportParams): ReportData {
       series: programIds.map((id, i) => ({
         key: id,
         label: programList.find((p) => p.id === id)?.name ?? id,
-        color: COMPARE_COLORS[i % COMPARE_COLORS.length],
+        color: BRAND_COMPARE_COLORS[i % BRAND_COMPARE_COLORS.length],
       })),
     }
 
@@ -192,7 +191,7 @@ export const bountyBudgetOverview: ReportModule = {
     xLabel: 'Period',
     yLabel: 'USD Awarded',
     allowedChartTypes: ['bar', 'line'],
-    series: [{ key: 'total', label: 'Amount Awarded', color: '#4C59A8' }],
+    series: [{ key: 'total', label: 'Amount Awarded', color: BC.blue }],
   },
 
   summaryFormatter(data) {
