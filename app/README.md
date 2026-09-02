@@ -20,8 +20,8 @@ A local, private reporting tool for [Intigriti](https://www.intigriti.com/) API 
 - [Save your configuration](#save-your-configuration)
 - [Local data cache](#local-data-cache)
 - [Build a new report module](#build-a-new-report-module)
-- [Package a module for sharing](#package-a-module-for-sharing)
-- [Install a shared module](#install-a-shared-module)
+- [Share a report module](#share-a-report-module)
+- [Import a shared module](#import-a-shared-module)
 - [Package a full release](#package-a-full-release)
 - [Security model](#security-model)
 - [Project structure](#project-structure)
@@ -152,7 +152,7 @@ Click **Live API** to connect to your live Intigriti data. Two authentication mo
 4. Copy the generated Bearer token.
 5. In the workbench, paste your token into the **Bearer Token** field and click **Validate & Connect**.
 
-Once connected, a green dot and your accessible programs appear in the panel.
+Once connected, a green dot and your accessible programs appear in the panel. The workbench also probes which Intigriti API versions are online — if multiple supported versions are available, a version chip row appears so you can switch between them.
 
 #### OAuth 2.0 (for teams or programmatic use)
 
@@ -250,114 +250,57 @@ Once you have cache files, switch to **Local Cache** in the Data Source panel an
 
 ## Build a new report module
 
-Report modules are self-contained TypeScript files. Adding one requires creating a single directory and registering it — no changes to the core app.
+The workbench includes an in-app **Report Builder** — a 6-step wizard that lets you create custom report modules without writing any code. For modules that need custom logic, a JavaScript escape hatch is available.
 
-See [REPORT_MODULE_GUIDE.md](./REPORT_MODULE_GUIDE.md) for the full guide. The steps in brief:
+### Open the builder
 
-### 1. Create the module directory
+In the report tile grid, click the **"Create report module"** dashed tile at the end of the grid.
 
-```bash
-mkdir app/src/reports/myReport
-```
+### Steps at a glance
 
-Create `app/src/reports/myReport/index.ts` using the template in the guide.
+| Step | What you configure |
+|---|---|
+| **1 — Basics** | Title, description, category, module ID, author, version |
+| **2 — Data** | Which API data source and which parameter fields to expose |
+| **3 — Group & Metrics** | Declarative group-by + aggregations, or custom JavaScript functions |
+| **4 — Visualisation** | Chart type, axis labels, series colours |
+| **5 — Columns** | Table column keys and labels |
+| **6 — Preview** | Live render against sample data — click **Save module** to finish |
 
-### 2. Implement the module
+The module appears immediately in the tile grid after saving.
 
-A module exports one object that implements `ReportModule`:
+### Custom JavaScript
 
-```typescript
-export const myReport: ReportModule = {
-  id: 'myReport',
-  title: 'My Report',
-  description: 'What this report shows.',
-  category: 'snapshot',           // 'triage' | 'bounty' | 'snapshot' | 'developer'
+Step 3 offers a **Custom JavaScript** mode for logic the declarative settings can't express. Two functions are available: `customFetchData(ctx, params)` (async — calls the API and returns raw data) and `customTransform(ctx, raw, params)` (sync — shapes data into rows, chart data, and summary cards).
 
-  paramFields: [
-    { key: 'programIds', label: 'Programs', type: 'programSelect', required: true },
-    { key: 'startDate',  label: 'Start Date', type: 'dateRange',   required: false },
-    { key: 'endDate',    label: 'End Date',   type: 'dateRange',   required: false },
-  ],
+See [REPORT_MODULE_GUIDE.md](./REPORT_MODULE_GUIDE.md) for the full context API reference and examples.
 
-  async fetchData(params) {
-    // fetch raw data from the API
-  },
-
-  transform(raw, params): ReportData {
-    // convert raw data into rows, chartData, summaryCards
-  },
-
-  tableColumns: [ ... ],
-  chartConfig: { type: 'bar', xKey: 'date', series: [...] },
-  exportConfig: { csvFilename: 'my-report', ... },
-  samplePreview,   // pre-computed from fixture data — renders instantly
-}
-```
-
-### 3. Register the module
-
-Open `app/src/reports/registry.ts`:
-
-```typescript
-import { myReport } from './myReport'       // add this
-
-const ALL_MODULES: ReportModule[] = [
-  ...existingReports,
-  myReport,                                  // add this
-]
-```
-
-The report card appears immediately in the workbench — no restart needed.
-
-### 4. Test without an API key
-
-```bash
-npm run dev:mock
-```
-
-Click your report tile. The `samplePreview` renders immediately. Click **Generate Report** — `fetchData` is called with fixture data. Once mock mode works, switch to `npm run dev` with a real token.
+> **Security:** custom JavaScript runs with the same browser privileges as the rest of the app. Only load modules containing custom code from sources you trust.
 
 ---
 
-## Package a module for sharing
+## Share a report module
 
-Once your report module is working, create a shareable zip:
+Any module — including the five built-in ones — can be exported as a portable `.inti-module.json` file:
 
-```bash
-cd app
-npm run package:module -- dailyTriageMovement
-```
+1. In the report tile grid, hover over the module you want to share.
+2. Click the **Export** icon on the tile.
+3. A `.inti-module.json` file downloads to your device.
 
-This creates `dist/inti-module-dailyTriageMovement.zip` containing just the `src/reports/dailyTriageMovement/` directory.
-
-Send the `.zip` file to whoever needs it. They install it in one command — see below.
+Send the file to whoever needs it. They import it in seconds — see below.
 
 ---
 
-## Install a shared module
+## Import a shared module
 
-If someone sends you an `inti-module-*.zip` file:
+If someone sends you a `.inti-module.json` file:
 
-```bash
-cd app
-npm run install:module -- /path/to/inti-module-myReport.zip
-```
+1. Click the **Import** icon at the top of the report tile grid.
+2. Select one or more `.inti-module.json` files in the file picker.
+3. If a module contains custom JavaScript, a security confirmation prompt appears before it is loaded.
+4. The module appears immediately in the tile grid and persists across sessions (stored in browser localStorage).
 
-The module is extracted into `src/reports/`. The command prints exactly what to add to `registry.ts`.
-
-Then follow the printed instructions:
-
-```typescript
-// app/src/reports/registry.ts
-import { myReport } from './myReport'   // add this line
-
-const ALL_MODULES: ReportModule[] = [
-  ...existing,
-  myReport,                              // add this entry
-]
-```
-
-Reload the workbench — the new report card appears in the grid.
+To remove a module, click the **Delete** icon on its tile.
 
 ---
 
@@ -421,7 +364,7 @@ app/
     components/   Shared React UI components (panels, charts, tables, export)
     config/       API base URL, mock/cache mode flags, and config persistence
     fixtures/     Bundled sample JSON for mock mode and sample previews
-    reports/      Report module definitions and central registry
+    reports/      Report module specs, central registry, and user module store
     utils/        Date helpers, CSV export, image capture, secret redaction
   public/
     fonts/        Montserrat and Open Sans served locally
@@ -451,5 +394,5 @@ server.mjs        Standalone production server (no npm install needed)
 | Cache folder not appearing after reload | The File System Access API requires re-selecting the folder each session |
 | Encrypted cache files unreadable | You must provide the same passphrase used when the files were written |
 | Local Cache: "no cached programs found" | Connect via Live API first with a cache folder active, then run at least one report |
-| Report module not showing after install | Check that you added the import and array entry to `src/reports/registry.ts` |
-| TypeScript error after installing a module | Run `npm install` if the module has new dependencies listed in its zip |
+| Imported module not appearing | Refresh the page; confirm any security prompt that appears when loading modules with custom JavaScript |
+| Module lost after browser data clear | Re-import the `.inti-module.json` file — user modules are stored in browser localStorage |
