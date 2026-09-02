@@ -1,4 +1,5 @@
 import type { GroupByKey, AggregationKey } from '../../reports/userModules/types'
+import { BC } from '../../themes/brandColors'
 
 export const GROUP_BY_OPTIONS: { value: GroupByKey; label: string; dataSources: string[] }[] = [
   { value: 'time.day', label: 'Day', dataSources: ['submissions', 'payouts'] },
@@ -43,8 +44,8 @@ export const DATA_SOURCE_OPTIONS = [
 ] as const
 
 export const DEFAULT_COLORS = [
-  '#4C59A8', '#02A87C', '#F03157', '#E0AC00',
-  '#7BCFDB', '#E99C4A', '#575865', '#A855F7',
+  BC.blue, BC.green, BC.red, BC.gold,
+  BC.sky, BC.orange, BC.grayMid, BC.blueLight,
 ]
 
 export const STEPS = [
