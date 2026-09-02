@@ -57,13 +57,17 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
   const [sourceMode, setSourceMode] = useState<SourceMode>(
     getMockMode() ? 'mock' : getCacheMode() ? 'cache' : 'live',
   )
-  const [liveStep, setLiveStep] = useState<LiveStep>('token')
+  // Restore pending OAuth handshake state that survived the page redirect.
+  // sessionStorage is cleared after a successful exchange or on error.
+  const [liveStep, setLiveStep] = useState<LiveStep>(() =>
+    sessionStorage.getItem('inti_oauth_pending_state') ? 'oauth' : 'token'
+  )
   const [bearerInput, setBearerInput] = useState('')
   const [clientId, setClientId] = useState('')
   const [clientSecret, setClientSecret] = useState('')
-  const [oauthState, setOauthState] = useState('')
-  const [pendingClientId, setPendingClientId] = useState('')
-  const [pendingClientSecret, setPendingClientSecret] = useState('')
+  const [oauthState] = useState(() => sessionStorage.getItem('inti_oauth_pending_state') ?? '')
+  const [pendingClientId] = useState(() => sessionStorage.getItem('inti_oauth_pending_client_id') ?? '')
+  const [pendingClientSecret] = useState(() => sessionStorage.getItem('inti_oauth_pending_client_secret') ?? '')
   const [localStorageEnabled, setLocalStorageEnabled] = useState(false)
   const [testing, setTesting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -78,10 +82,12 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
       if (state !== oauthState) return
       try {
         const tokens = await exchangeCode(code, pendingClientId, pendingClientSecret)
+        clearOAuthSession()
         scheduleRefresh(pendingClientId, pendingClientSecret, tokens.expires_in)
         await onConnected()
         startVersionProbe()
       } catch (err) {
+        clearOAuthSession()
         setError(String(err))
       }
     }
@@ -195,13 +201,18 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
   const handleOAuthAuthorise = () => {
     if (!clientId.trim() || !clientSecret.trim()) return
     const state = Math.random().toString(36).slice(2)
-    setOauthState(state)
-    setPendingClientId(clientId.trim())
-    setPendingClientSecret(clientSecret.trim())
-    setClientId('')
-    setClientSecret('')
+    // Persist handshake values before navigating — React state is destroyed on redirect
+    sessionStorage.setItem('inti_oauth_pending_state', state)
+    sessionStorage.setItem('inti_oauth_pending_client_id', clientId.trim())
+    sessionStorage.setItem('inti_oauth_pending_client_secret', clientSecret.trim())
     const url = buildAuthUrl(clientId.trim(), state)
     window.location.href = url
+  }
+
+  const clearOAuthSession = () => {
+    sessionStorage.removeItem('inti_oauth_pending_state')
+    sessionStorage.removeItem('inti_oauth_pending_client_id')
+    sessionStorage.removeItem('inti_oauth_pending_client_secret')
   }
 
   const handleClear = () => {
