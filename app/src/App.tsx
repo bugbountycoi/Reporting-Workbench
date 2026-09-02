@@ -217,7 +217,7 @@ export default function App() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `${spec.id}.inti-module.json`
+    a.download = `${spec.id}.rwce-module.json`
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -479,14 +479,14 @@ export default function App() {
 
             {urlImportOpen && (
               <div className="mb-3 flex flex-col gap-1.5 p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                <p className="text-xs text-gray-500">Paste a URL to a <code>.inti-module.json</code> file or a raw GitHub URL:</p>
+                <p className="text-xs text-gray-500">Paste a URL to a <code>.rwce-module.json</code> file or a raw GitHub URL:</p>
                 <div className="flex gap-2">
                   <input
                     type="url"
                     value={urlImportValue}
                     onChange={(e) => setUrlImportValue(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleImportFromUrl()}
-                    placeholder="https://example.com/module.inti-module.json"
+                    placeholder="https://example.com/module.rwce-module.json"
                     className="flex-1 text-xs border border-gray-300 rounded-md px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-brand-blue"
                     autoFocus
                   />
