@@ -59,6 +59,9 @@ export interface ReportModule {
   title: string
   description: string
   category: 'triage' | 'bounty' | 'snapshot' | 'developer'
+  author?: string
+  version?: string
+  isBuiltIn?: boolean
   requiredScopes: string[]
   isAvailable: (ctx: AppContext) => boolean
   paramFields: ParamField[]
