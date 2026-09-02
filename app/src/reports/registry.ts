@@ -45,3 +45,9 @@ export function getAvailableReports(ctx: AppContext): ReportModule[] {
 export function getReportById(id: string, ctx: AppContext): ReportModule | undefined {
   return buildModules(ctx).find((m) => m.id === id)
 }
+
+export function getSpecById(id: string): UserModuleSpec | undefined {
+  const builtIn = BUILT_IN_SPECS.find((s) => s.id === id)
+  if (builtIn) return builtIn
+  return loadUserModuleSpecs().find((s) => s.id === id)
+}

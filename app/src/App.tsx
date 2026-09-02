@@ -13,8 +13,11 @@ import { ErrorPanel } from './components/ErrorPanel'
 import { RawJsonToggle } from './components/RawJsonToggle'
 import { getToken, enableLocalStorage } from './auth/store'
 import { getPrograms } from './api/endpoints/programs'
-import { getAvailableReports } from './reports/registry'
+import { getAvailableReports, getSpecById } from './reports/registry'
 import type { ReportModule, ReportData, ReportParams, AppContext } from './reports/types'
+import type { UserModuleSpec } from './reports/userModules/types'
+import { isUserModuleSpec } from './reports/userModules/types'
+import { addUserModuleSpec, deleteUserModuleSpec } from './reports/userModules/store'
 import type { ProgramOverviewViewModel } from './api/types'
 import { getMockMode, getCacheMode } from './config/api'
 import { saveWorkbenchConfig, loadWorkbenchConfig, type SavedModuleParams } from './config/savedConfig'
@@ -72,6 +75,12 @@ export default function App() {
   const [moduleParamsCache, setModuleParamsCache] = useState<Record<string, ReportParams>>({})
   const [saveLabel, setSaveLabel] = useState<string | null>(null)
 
+  const [builderOpen, setBuilderOpen] = useState(false)
+  const [editingSpec, setEditingSpec] = useState<UserModuleSpec | null>(null)
+  const [importWarning, setImportWarning] = useState<string | null>(null)
+  const [, forceRefresh] = useState(0)
+
+  const importInputRef = useRef<HTMLInputElement>(null)
   const hasAutoConnected = useRef(false)
 
   const isConnected = appState === 'connected'
@@ -181,6 +190,83 @@ export default function App() {
   const handleParamsChange = useCallback((reportId: string, params: ReportParams) => {
     setModuleParamsCache((c) => ({ ...c, [reportId]: params }))
   }, [])
+
+  const handleExportModule = (id: string) => {
+    const spec = getSpecById(id)
+    if (!spec) return
+    const json = JSON.stringify(spec, null, 2)
+    const blob = new Blob([json], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${spec.id}.inti-module.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const handleImportFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return
+    const hasCustomJs: string[] = []
+    const valid: UserModuleSpec[] = []
+
+    for (const file of Array.from(files)) {
+      try {
+        const text = await file.text()
+        const parsed = JSON.parse(text)
+        const specs = Array.isArray(parsed) ? parsed : [parsed]
+        for (const obj of specs) {
+          if (!isUserModuleSpec(obj)) {
+            alert(`"${file.name}" is not a valid Intigriti module file — skipped.`)
+            continue
+          }
+          valid.push(obj as UserModuleSpec)
+          if ((obj as UserModuleSpec).customTransform || (obj as UserModuleSpec).customFetchData) {
+            hasCustomJs.push((obj as UserModuleSpec).title)
+          }
+        }
+      } catch {
+        alert(`Could not read "${file.name}" — skipped.`)
+      }
+    }
+
+    if (valid.length === 0) return
+
+    if (hasCustomJs.length > 0) {
+      const ok = window.confirm(
+        `Warning: The following module(s) contain custom JavaScript that will execute in your browser:\n\n${hasCustomJs.join('\n')}\n\nOnly import modules from authors you trust.\n\nClick OK to continue, or Cancel to abort.`
+      )
+      if (!ok) return
+    }
+
+    for (const spec of valid) {
+      addUserModuleSpec(spec)
+    }
+
+    setImportWarning(hasCustomJs.length > 0 ? `Imported ${valid.length} module(s) — ${hasCustomJs.length} contain custom JavaScript.` : null)
+    forceRefresh((n) => n + 1)
+  }
+
+  const handleDeleteModule = (id: string) => {
+    const spec = getSpecById(id)
+    if (!spec) return
+    const ok = window.confirm(`Delete "${spec.title}"? This cannot be undone.`)
+    if (!ok) return
+    deleteUserModuleSpec(id)
+    if (selectedReport?.id === id) setSelectedReport(null)
+    forceRefresh((n) => n + 1)
+  }
+
+  const handleCreateNew = () => {
+    setEditingSpec(null)
+    setBuilderOpen(true)
+  }
+
+  const handleEditModule = (id: string) => {
+    const spec = getSpecById(id)
+    if (!spec) return
+    setEditingSpec(spec)
+    setBuilderOpen(true)
+  }
 
   const handleSaveConfig = () => {
     const moduleParams: Record<string, SavedModuleParams> = {}
@@ -295,15 +381,61 @@ export default function App() {
           )}
 
           <section>
-            <h2 className="text-lg font-heading font-semibold text-brand-navy mb-3">Reports</h2>
-            <ReportSelector
-              reports={availableReports}
-              selectedId={selectedReport?.id ?? null}
-              onSelect={handleSelectReport}
-              onSelectPreview={handleSelectPreview}
-              onSelectMyData={handleSelectMyData}
-              moduleDataCache={moduleDataCache}
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-heading font-semibold text-brand-navy">Reports</h2>
+              <button
+                onClick={() => importInputRef.current?.click()}
+                className="text-xs font-semibold text-gray-500 hover:text-brand-blue transition-colors"
+              >
+                Import module ↑
+              </button>
+            </div>
+
+            {importWarning && (
+              <div className="mb-3 px-4 py-2 bg-amber-100 border border-amber-300 rounded-lg text-amber-800 text-xs font-medium flex items-center justify-between">
+                <span>{importWarning}</span>
+                <button onClick={() => setImportWarning(null)} className="ml-3 text-amber-600 hover:text-amber-900">✕</button>
+              </div>
+            )}
+
+            <input
+              ref={importInputRef}
+              type="file"
+              accept=".json"
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                handleImportFiles(e.target.files)
+                e.target.value = ''
+              }}
             />
+
+            {builderOpen ? (
+              <div className="rounded-xl border border-brand-blue bg-blue-50 p-6 text-center text-brand-blue font-medium text-sm">
+                Report Builder
+                {editingSpec ? ` — editing "${editingSpec.title}"` : ' — new module'}
+                <br />
+                <button
+                  onClick={() => setBuilderOpen(false)}
+                  className="mt-3 text-xs text-gray-500 hover:underline"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <ReportSelector
+                reports={availableReports}
+                selectedId={selectedReport?.id ?? null}
+                onSelect={handleSelectReport}
+                onSelectPreview={handleSelectPreview}
+                onSelectMyData={handleSelectMyData}
+                moduleDataCache={moduleDataCache}
+                onCreateNew={handleCreateNew}
+                onExport={handleExportModule}
+                onEdit={handleEditModule}
+                onDelete={handleDeleteModule}
+              />
+            )}
           </section>
 
           {selectedReport && (
