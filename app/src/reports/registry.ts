@@ -1,20 +1,39 @@
-import { dailyTriageMovement } from './dailyTriageMovement'
-import { weeklyTriageSummary } from './weeklyTriageSummary'
-import { bountyBudgetOverview } from './bountyBudgetOverview'
-import { submissionStatusSnapshot } from './submissionStatusSnapshot'
-import { rawApiExplorer } from './rawApiExplorer'
 import type { ReportModule, AppContext } from './types'
+import type { UserModuleSpec } from './userModules/types'
+import { specToModule } from './userModules/interpreter'
+import { loadUserModuleSpecs } from './userModules/store'
 
-const ALL_MODULES: ReportModule[] = [
-  dailyTriageMovement,
-  weeklyTriageSummary,
-  bountyBudgetOverview,
-  submissionStatusSnapshot,
-  rawApiExplorer,
+import { dailyTriageMovementSpec } from './dailyTriageMovement/spec'
+import { weeklyTriageSummarySpec } from './weeklyTriageSummary/spec'
+import { bountyBudgetOverviewSpec } from './bountyBudgetOverview/spec'
+import { submissionStatusSnapshotSpec } from './submissionStatusSnapshot/spec'
+import { rawApiExplorerSpec } from './rawApiExplorer/spec'
+
+const BUILT_IN_SPECS: UserModuleSpec[] = [
+  dailyTriageMovementSpec,
+  weeklyTriageSummarySpec,
+  bountyBudgetOverviewSpec,
+  submissionStatusSnapshotSpec,
+  rawApiExplorerSpec,
 ]
 
+function buildModules(ctx: AppContext): ReportModule[] {
+  const { programs } = ctx
+
+  const builtIn = BUILT_IN_SPECS.map((spec) => {
+    const mod = specToModule(spec, programs)
+    mod.isBuiltIn = true
+    return mod
+  })
+
+  const userSpecs = loadUserModuleSpecs()
+  const userModules = userSpecs.map((spec) => specToModule(spec, programs))
+
+  return [...builtIn, ...userModules]
+}
+
 export function getAvailableReports(ctx: AppContext): ReportModule[] {
-  return ALL_MODULES.filter((m) => {
+  return buildModules(ctx).filter((m) => {
     try {
       return m.isAvailable(ctx)
     } catch {
@@ -23,6 +42,6 @@ export function getAvailableReports(ctx: AppContext): ReportModule[] {
   })
 }
 
-export function getReportById(id: string): ReportModule | undefined {
-  return ALL_MODULES.find((m) => m.id === id)
+export function getReportById(id: string, ctx: AppContext): ReportModule | undefined {
+  return buildModules(ctx).find((m) => m.id === id)
 }

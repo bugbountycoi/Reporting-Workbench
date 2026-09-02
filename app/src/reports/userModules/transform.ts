@@ -108,7 +108,7 @@ function computeMetric(items: AnyRecord[], aggregation: AggregationKey): number 
 // ---------------------------------------------------------------------------
 
 function deriveSummaryCardValue(
-  spec: UserModuleSpec,
+  _spec: UserModuleSpec,
   allItems: AnyRecord[],
   valueKey: string,
 ): string | number {

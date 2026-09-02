@@ -41,8 +41,8 @@ const TRANSFORM_CTX: TransformCtx = {
 
 function buildFetchCtx(): FetchCtx {
   return {
-    getProgramSubmissions: (id, startDate, endDate) =>
-      getProgramSubmissions(id, startDate, endDate) as Promise<unknown[]>,
+    getProgramSubmissions: (id, _startDate, _endDate) =>
+      getProgramSubmissions(id) as Promise<unknown[]>,
     getAllPayouts: () => getAllPayouts() as Promise<unknown[]>,
     getProgramDetail: (id) => getProgramDetail(id) as Promise<unknown>,
     apiGet,
