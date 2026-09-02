@@ -404,6 +404,18 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
                   autoComplete="off"
                   autoFocus
                 />
+                <p className="mt-1.5 text-xs text-brand-gray-mid leading-snug">
+                  Get a token from{' '}
+                  <a
+                    href="https://api.intigriti.com/external/company/swagger/index.html?urls.primaryName=V2.0"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-brand-blue underline hover:text-brand-blue-dark"
+                  >
+                    Intigriti Swagger UI
+                  </a>
+                  {' '}(click Authorize → paste your Client ID &amp; Secret → copy the access_token from the response) or from Admin › Integrations › Intigriti API.
+                </p>
               </div>
               <div className="flex items-center gap-3">
                 <button
@@ -442,14 +454,23 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
 
           {liveStep === 'oauth' && (
             <>
-              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-800">
-                <p className="font-semibold mb-1">Required: register this Redirect URI in your Intigriti OAuth app</p>
-                <code className="block font-mono bg-white border border-amber-200 rounded px-2 py-1 text-xs break-all select-all text-gray-800">
-                  {API_CONFIG.oauthRedirectUri}
-                </code>
-                <p className="mt-1.5 text-amber-700">
-                  In Intigriti: Admin → Integrations → OAuth Applications → your app → Redirect URIs
-                </p>
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-800 space-y-2">
+                <div>
+                  <p className="font-semibold mb-1">1. Register this Redirect URI in your Intigriti OAuth app</p>
+                  <code className="block font-mono bg-white border border-amber-200 rounded px-2 py-1 text-xs break-all select-all text-gray-800">
+                    {API_CONFIG.oauthRedirectUri}
+                  </code>
+                  <p className="mt-1 text-amber-700">Admin → Integrations → OAuth Applications → your app → Redirect URIs</p>
+                </div>
+                <div>
+                  <p className="font-semibold mb-1">2. Enable these scopes on your OAuth app</p>
+                  <div className="flex flex-wrap gap-1">
+                    {['company_external_api', 'offline_access'].map((s) => (
+                      <code key={s} className="font-mono bg-white border border-amber-200 rounded px-1.5 py-0.5 text-xs text-gray-800">{s}</code>
+                    ))}
+                  </div>
+                  <p className="mt-1 text-amber-700">Admin → Integrations → OAuth Applications → your app → Scopes</p>
+                </div>
               </div>
               <input
                 type="text"

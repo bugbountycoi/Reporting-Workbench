@@ -56,5 +56,5 @@ export const API_CONFIG = {
   oauthAuthorizeUrl: 'https://login.intigriti.com/connect/authorize',
   oauthTokenUrl: 'https://login.intigriti.com/connect/token',
   oauthRedirectUri: `${window.location.origin}/oauth/callback`,
-  defaultScopes: 'company_external_api core_platform:read reward_system:read offline_access',
+  defaultScopes: 'company_external_api offline_access',
 } as const
