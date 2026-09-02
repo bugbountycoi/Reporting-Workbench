@@ -1,5 +1,6 @@
 import type { UserModuleSpec } from '../userModules/types'
 import submissionsSample from '../../fixtures/submissions.sample.json'
+import { BC } from '../../themes/brandColors'
 
 export const submissionStatusSnapshotSpec: UserModuleSpec = {
   schemaVersion: 1,
@@ -22,7 +23,7 @@ export const submissionStatusSnapshotSpec: UserModuleSpec = {
   chartXLabel: 'Age',
   chartYLabel: 'Submissions',
   allowedChartTypes: ['bar', 'stackedBar', 'line'],
-  series: [{ metricKey: 'count', color: '#4C59A8' }],
+  series: [{ metricKey: 'count', color: BC.blue }],
   tableColumns: [
     { key: 'status', label: 'Status' },
     { key: 'count', label: 'Count' },

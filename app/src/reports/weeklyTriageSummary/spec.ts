@@ -1,5 +1,6 @@
 import type { UserModuleSpec } from '../userModules/types'
 import { sampleSubmissions } from '../dailyTriageMovement/fixtures'
+import { BC } from '../../themes/brandColors'
 
 export const weeklyTriageSummarySpec: UserModuleSpec = {
   schemaVersion: 1,
@@ -23,10 +24,10 @@ export const weeklyTriageSummarySpec: UserModuleSpec = {
   chartYLabel: 'Count',
   allowedChartTypes: ['bar', 'stackedBar', 'line'],
   series: [
-    { metricKey: 'received', color: '#4C59A8' },
-    { metricKey: 'accepted', color: '#10B981' },
-    { metricKey: 'rejected', color: '#EF4444' },
-    { metricKey: 'duplicate', color: '#F59E0B' },
+    { metricKey: 'received', color: BC.blue },
+    { metricKey: 'accepted', color: BC.green },
+    { metricKey: 'rejected', color: BC.red },
+    { metricKey: 'duplicate', color: BC.gold },
   ],
   tableColumns: [
     { key: 'period', label: 'Period' },

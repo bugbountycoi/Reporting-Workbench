@@ -1,5 +1,6 @@
 import type { UserModuleSpec } from '../userModules/types'
 import payoutsSample from '../../fixtures/payouts.sample.json'
+import { BC } from '../../themes/brandColors'
 
 const sampleRaw = {
   payouts: payoutsSample,
@@ -34,7 +35,7 @@ export const bountyBudgetOverviewSpec: UserModuleSpec = {
   chartXLabel: 'Period',
   chartYLabel: 'USD Awarded',
   allowedChartTypes: ['bar', 'line'],
-  series: [{ metricKey: 'total', color: '#4C59A8' }],
+  series: [{ metricKey: 'total', color: BC.blue }],
   tableColumns: [
     { key: 'severity', label: 'Severity' },
     { key: 'count', label: 'Count' },
