@@ -1,5 +1,6 @@
 import type { UserModuleSpec, SeriesDef, ChartType } from '../../reports/userModules/types'
 import { CHART_TYPE_OPTIONS, DEFAULT_COLORS } from './constants'
+import { resolveColor } from '../../themes/brandColors'
 
 interface Props {
   spec: Partial<UserModuleSpec>
@@ -103,14 +104,14 @@ export function StepVisualization({ spec, onChange }: Props) {
                   <div key={s.metricKey} className="flex items-center gap-3 mb-2">
                     <input
                       type="color"
-                      value={s.color || DEFAULT_COLORS[idx % DEFAULT_COLORS.length]}
+                      value={resolveColor(s.color || DEFAULT_COLORS[idx % DEFAULT_COLORS.length])}
                       onChange={(e) => updateSeriesColor(s.metricKey, e.target.value)}
                       className="w-8 h-8 rounded cursor-pointer border border-gray-200"
                     />
                     <span className="text-xs text-gray-700">{label}</span>
                     <input
                       type="text"
-                      value={s.color || DEFAULT_COLORS[idx % DEFAULT_COLORS.length]}
+                      value={resolveColor(s.color || DEFAULT_COLORS[idx % DEFAULT_COLORS.length])}
                       onChange={(e) => updateSeriesColor(s.metricKey, e.target.value)}
                       className="w-24 border border-gray-200 rounded px-2 py-1 text-xs font-mono"
                     />
