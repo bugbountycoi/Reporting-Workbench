@@ -200,7 +200,9 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
 
   const handleOAuthAuthorise = () => {
     if (!clientId.trim() || !clientSecret.trim()) return
-    const state = Math.random().toString(36).slice(2)
+    const bytes = new Uint8Array(16)
+    crypto.getRandomValues(bytes)
+    const state = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
     // Persist handshake values before navigating — React state is destroyed on redirect
     sessionStorage.setItem('inti_oauth_pending_state', state)
     sessionStorage.setItem('inti_oauth_pending_client_id', clientId.trim())
