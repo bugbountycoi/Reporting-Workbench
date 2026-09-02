@@ -23,6 +23,32 @@ export function setCacheMode(val: boolean): void {
   else localStorage.removeItem(CACHE_STORAGE_KEY)
 }
 
+// ---------------------------------------------------------------------------
+// API version management
+// ---------------------------------------------------------------------------
+
+const VERSION_STORAGE_KEY = 'inti_api_version'
+
+/** Versions the app's endpoint code is written and tested against. */
+export const APP_SUPPORTED_VERSIONS = new Set(['v2'])
+
+/** All versions probed at connect time — includes unsupported ones for visibility. */
+export const KNOWN_API_VERSIONS = ['v1', 'v2'] as const
+
+let _activeVersion: string = localStorage.getItem(VERSION_STORAGE_KEY) ?? 'v2'
+
+export function getActiveApiVersion(): string { return _activeVersion }
+
+export function setActiveApiVersion(v: string): void {
+  _activeVersion = v
+  localStorage.setItem(VERSION_STORAGE_KEY, v)
+}
+
+/** Returns the base URL for the currently active API version. Read by api/client.ts. */
+export function getApiBaseUrl(): string { return `/api/${_activeVersion}` }
+
+// ---------------------------------------------------------------------------
+
 export const API_CONFIG = {
   // Vite dev proxy rewrites /api/* → https://api.intigriti.com/external/company/*
   baseUrl: '/api/v2',

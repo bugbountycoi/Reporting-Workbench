@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { setToken, clearToken, enableLocalStorage, disableLocalStorage } from '../auth/store'
 import { buildAuthUrl, exchangeCode, scheduleRefresh, cancelRefreshSchedule } from '../auth/oauth'
 import { getPrograms } from '../api/endpoints/programs'
-import { getMockMode, setMockMode, getCacheMode, setCacheMode } from '../config/api'
+import { getMockMode, setMockMode, getCacheMode, setCacheMode, getActiveApiVersion, setActiveApiVersion } from '../config/api'
+import { probeApiVersions, selectBestVersion, type VersionProbeResult } from '../api/versions'
 import { requestCacheFolder, readFromCache, loadCacheIndex } from '../cache/manager'
 import { cacheConfig } from '../cache/cacheConfig'
 import { formatDistanceToNow } from 'date-fns'
@@ -67,6 +68,9 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
   const [testing, setTesting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [cacheAge, setCacheAge] = useState<string | null>(null)
+  const [versionResults, setVersionResults] = useState<VersionProbeResult[] | null>(null)
+  const [versionProbing, setVersionProbing] = useState(false)
+  const [activeVersion, setLocalActiveVersion] = useState(getActiveApiVersion)
 
   useEffect(() => {
     const handler = async (e: Event) => {
@@ -76,6 +80,7 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
         const tokens = await exchangeCode(code, pendingClientId, pendingClientSecret)
         scheduleRefresh(pendingClientId, pendingClientSecret, tokens.expires_in)
         await onConnected()
+        startVersionProbe()
       } catch (err) {
         setError(String(err))
       }
@@ -158,12 +163,33 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
       await getPrograms()
       setBearerInput('')
       await onConnected()
+      startVersionProbe()
     } catch (e) {
       clearToken()
       setError(`Token validation failed: ${String(e)}`)
     } finally {
       setTesting(false)
     }
+  }
+
+  function startVersionProbe() {
+    setVersionProbing(true)
+    setVersionResults(null)
+    probeApiVersions().then((results) => {
+      setVersionResults(results)
+      setVersionProbing(false)
+      const best = selectBestVersion(results)
+      if (best && best !== getActiveApiVersion()) {
+        setActiveApiVersion(best)
+        setLocalActiveVersion(best)
+      }
+    })
+  }
+
+  function handleVersionSwitch(v: string) {
+    setActiveApiVersion(v)
+    setLocalActiveVersion(v)
+    window.location.reload()
   }
 
   const handleOAuthAuthorise = () => {
@@ -275,6 +301,52 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
             </p>
           )}
           <ProgramList programs={programs} />
+
+          {/* API version status */}
+          {versionProbing && (
+            <p className="text-xs text-brand-gray-mid italic">Detecting API versions…</p>
+          )}
+          {!versionProbing && versionResults && (() => {
+            const onlineSupported = versionResults.filter((r) => r.isOnline && r.isSupported)
+            if (onlineSupported.length <= 1) {
+              // Single option — no picker, just a status line
+              return (
+                <p className="text-xs text-brand-gray-mid">
+                  API {activeVersion}
+                  {versionResults.find((r) => r.version === activeVersion)?.latencyMs != null &&
+                    ` · ${versionResults.find((r) => r.version === activeVersion)!.latencyMs}ms`}
+                </p>
+              )
+            }
+            // Multiple supported+online versions — show chips
+            return (
+              <div className="flex flex-wrap gap-1.5">
+                {versionResults.map((r) => {
+                  const isActive = r.version === activeVersion
+                  const canSwitch = r.isOnline && r.isSupported && !isActive
+                  const label = r.version + (r.latencyMs != null ? ` · ${r.latencyMs}ms` : '')
+                  const suffix = !r.isOnline ? ' (offline)' : !r.isSupported ? ' (unsupported)' : ''
+                  const base = 'px-2 py-0.5 rounded-full text-xs font-semibold transition-colors'
+                  const style = isActive
+                    ? `${base} bg-brand-navy text-white`
+                    : canSwitch
+                      ? `${base} bg-gray-100 text-gray-600 hover:bg-brand-blue hover:text-white cursor-pointer`
+                      : `${base} bg-gray-50 text-gray-400 cursor-default`
+                  return (
+                    <button
+                      key={r.version}
+                      className={style}
+                      disabled={!canSwitch}
+                      onClick={() => canSwitch && handleVersionSwitch(r.version)}
+                      title={isActive ? 'Active version' : canSwitch ? `Switch to ${r.version}` : undefined}
+                    >
+                      {label}{suffix}
+                    </button>
+                  )
+                })}
+              </div>
+            )
+          })()}
         </div>
       )}
 

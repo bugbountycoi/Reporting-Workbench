@@ -1,4 +1,4 @@
-import { API_CONFIG } from '../config/api'
+import { getApiBaseUrl } from '../config/api'
 import { getToken } from '../auth/store'
 import { safeLog } from '../utils/redaction'
 import { ApiError, type ApiErrorModel } from './types'
@@ -16,7 +16,7 @@ export async function apiFetch<T>(
   retries = 0,
 ): Promise<T> {
   const token = getToken()
-  const url = `${API_CONFIG.baseUrl}${path}`
+  const url = `${getApiBaseUrl()}${path}`
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
