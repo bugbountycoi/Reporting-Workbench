@@ -11,7 +11,7 @@ import { ChartPanel } from './components/ChartPanel'
 import { ExportButtons } from './components/ExportButtons'
 import { ErrorPanel } from './components/ErrorPanel'
 import { RawJsonToggle } from './components/RawJsonToggle'
-import { getToken, enableLocalStorage } from './auth/store'
+import { getToken, enableLocalStorage, TOKEN_STORAGE_KEY } from './auth/store'
 import { getPrograms } from './api/endpoints/programs'
 import { getAvailableReports, getSpecById } from './reports/registry'
 import type { ReportModule, ReportData, ReportParams, AppContext } from './reports/types'
@@ -27,7 +27,6 @@ import { ThemeSwitcher } from './components/ThemeSwitcher'
 import { saveWorkbenchConfig, loadWorkbenchConfig, type SavedModuleParams, type SavedSettings } from './config/savedConfig'
 import { cacheConfig } from './cache/cacheConfig'
 
-const TOKEN_STORAGE_KEY = 'intigriti_workbench_token'
 
 function NetworkIcon({ className }: { className?: string }) {
   return (
@@ -143,8 +142,7 @@ export default function App() {
     const stored = localStorage.getItem(TOKEN_STORAGE_KEY)
     if (stored) {
       hasAutoConnected.current = true
-      enableLocalStorage()
-      handleConnected()
+      enableLocalStorage().then(() => handleConnected())
     } else if (getMockMode()) {
       hasAutoConnected.current = true
       handleConnected()

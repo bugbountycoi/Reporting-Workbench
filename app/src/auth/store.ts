@@ -1,4 +1,4 @@
-const STORAGE_KEY = 'intigriti_workbench_token'
+export const TOKEN_STORAGE_KEY = 'intigriti_workbench_token'
 // AES-GCM key lives in sessionStorage: cleared when the tab closes so
 // stored ciphertext is automatically undecryptable in a new browser session.
 const SESSION_EK = 'inti_wb_ek'
@@ -47,7 +47,7 @@ async function encryptToStorage(token: string, expiresAt: number | null): Promis
     const blob = new Uint8Array(12 + ct.byteLength)
     blob.set(iv)
     blob.set(new Uint8Array(ct), 12)
-    localStorage.setItem(STORAGE_KEY, toB64(blob))
+    localStorage.setItem(TOKEN_STORAGE_KEY, toB64(blob))
   } catch {
     // Silent — token is still in memory
   }
@@ -57,7 +57,7 @@ async function decryptFromStorage(): Promise<{ token: string; expiresAt: number 
   try {
     const ekRaw = sessionStorage.getItem(SESSION_EK)
     if (!ekRaw) return null
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = localStorage.getItem(TOKEN_STORAGE_KEY)
     if (!raw) return null
     const blob = fromB64(raw)
     const key = await crypto.subtle.importKey('raw', fromB64(ekRaw), 'AES-GCM', false, ['decrypt'])
@@ -104,7 +104,7 @@ export function clearToken(): void {
   _refreshToken = null
   _expiresAt = null
   if (_useLocalStorage) {
-    localStorage.removeItem(STORAGE_KEY)
+    localStorage.removeItem(TOKEN_STORAGE_KEY)
     sessionStorage.removeItem(SESSION_EK)
   }
 }
@@ -118,7 +118,7 @@ export async function enableLocalStorage(): Promise<void> {
       _token = payload.token
       _expiresAt = payload.expiresAt
     } else {
-      localStorage.removeItem(STORAGE_KEY) // New session — stale ciphertext is unusable
+      localStorage.removeItem(TOKEN_STORAGE_KEY) // New session — stale ciphertext is unusable
     }
   }
   // Persist whatever token is now in memory (covers both "checked before auth" and "after").
@@ -129,7 +129,7 @@ export async function enableLocalStorage(): Promise<void> {
 
 export function disableLocalStorage(): void {
   _useLocalStorage = false
-  localStorage.removeItem(STORAGE_KEY)
+  localStorage.removeItem(TOKEN_STORAGE_KEY)
   sessionStorage.removeItem(SESSION_EK)
 }
 
