@@ -70,12 +70,12 @@
   body {
     color: #111827;
     min-height: 100vh;
-    background-color: var(--brand-near-white, #F9F9FB);
-    font-family: var(--font-body, 'Open Sans', system-ui, sans-serif);
+    background-color: var(--brand-near-white, #ffffff);
+    font-family: var(--font-body, system-ui, sans-serif);
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: var(--font-heading, 'Montserrat', system-ui, sans-serif);
+    font-family: var(--font-heading, system-ui, sans-serif);
   }
 }
 
