@@ -16,23 +16,29 @@ export const communityTheme: ThemeSpec = {
   author: 'Community',
   version: '1.0.0',
   colors: {
-    navy:      '#0f3f45',
-    navyLight: '#174f57',
-    navyMid:   '#1f6470',
-    blue:      '#00B4D8',
-    blueDark:  '#0096B7',
-    blueLight: '#38C9E0',
-    orange:     '#E99C4A',
-    orangeDark: '#C47E35',
-    red:       '#F03157',
-    green:     '#02A87C',
-    gold:      '#E0AC00',
-    sky:       '#B2EBF2',
-    grayDark:  '#4a5568',
-    grayMid:   '#718096',
-    grayLight: '#E2E8F0',
-    offWhite:  '#F0FDFD',
-    nearWhite: '#F7FFFE',
+    // Header/nav — deep ocean teal, clearly distinct from Intigriti's dark navy blue
+    navy:      '#0A3040',
+    navyLight: '#0D3D50',
+    navyMid:   '#124E65',
+    // Primary actions — bright cyan vs Intigriti's indigo
+    blue:      '#06B6D4',
+    blueDark:  '#0891B2',
+    blueLight: '#22D3EE',
+    // Accent — amber vs Intigriti's warm orange
+    orange:     '#F59E0B',
+    orangeDark: '#D97706',
+    // Status colours
+    red:    '#F03157',
+    green:  '#02A87C',
+    gold:   '#E0AC00',
+    sky:    '#BAE6FD',
+    // Grays — teal-shifted vs Intigriti's neutral grays
+    grayDark:  '#1E3A47',
+    grayMid:   '#4B7A8E',
+    // Surfaces — all carry visible teal tint; clearly distinct from Intigriti's neutral whites
+    grayLight: '#C2E8EF',
+    offWhite:  '#E8F8FB',
+    nearWhite: '#F0FBFC',
   },
   fonts: {
     heading: 'system-ui, -apple-system, sans-serif',
