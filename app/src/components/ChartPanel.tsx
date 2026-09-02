@@ -15,6 +15,8 @@ import {
   Cell,
 } from 'recharts'
 import type { ChartConfig } from '../reports/types'
+import { resolveColor, BC } from '../themes/brandColors'
+import { useTheme } from '../themes/ThemeProvider'
 
 interface Props {
   id: string
@@ -29,6 +31,7 @@ const TYPE_LABELS: Record<string, string> = {
 }
 
 export function ChartPanel({ id, config, data }: Props) {
+  const { activeTheme } = useTheme()
   const [activeType, setActiveType] = useState<ChartConfig['type']>(config.type)
 
   useEffect(() => {
@@ -48,6 +51,7 @@ export function ChartPanel({ id, config, data }: Props) {
   }
 
   const axisProps = { style: { fontSize: 11 } }
+  const gridStroke = resolveColor(BC.grayLight)
 
   let chart: React.ReactNode
 
@@ -63,7 +67,7 @@ export function ChartPanel({ id, config, data }: Props) {
           paddingAngle={2}
         >
           {data.map((_, index) => (
-            <Cell key={index} fill={config.series[index % config.series.length]?.color ?? '#4C59A8'} />
+            <Cell key={index} fill={resolveColor(config.series[index % config.series.length]?.color ?? BC.blue)} />
           ))}
         </Pie>
         <Tooltip />
@@ -73,39 +77,39 @@ export function ChartPanel({ id, config, data }: Props) {
   } else if (activeType === 'line') {
     chart = (
       <LineChart {...commonProps}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+        <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
         <XAxis dataKey={config.xKey} {...axisProps} />
         <YAxis {...axisProps} />
         <Tooltip />
         <Legend />
         {config.series.map((s) => (
-          <Line key={s.key} type="monotone" dataKey={s.key} name={s.label} stroke={s.color} dot={false} strokeWidth={2} />
+          <Line key={s.key} type="monotone" dataKey={s.key} name={s.label} stroke={resolveColor(s.color)} dot={false} strokeWidth={2} />
         ))}
       </LineChart>
     )
   } else if (activeType === 'stackedBar') {
     chart = (
       <BarChart {...commonProps}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+        <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
         <XAxis dataKey={config.xKey} {...axisProps} />
         <YAxis {...axisProps} />
         <Tooltip />
         <Legend />
         {config.series.map((s) => (
-          <Bar key={s.key} dataKey={s.key} name={s.label} fill={s.color} stackId="a" />
+          <Bar key={s.key} dataKey={s.key} name={s.label} fill={resolveColor(s.color)} stackId="a" />
         ))}
       </BarChart>
     )
   } else {
     chart = (
       <BarChart {...commonProps}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+        <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
         <XAxis dataKey={config.xKey} {...axisProps} />
         <YAxis {...axisProps} />
         <Tooltip />
         <Legend />
         {config.series.map((s) => (
-          <Bar key={s.key} dataKey={s.key} name={s.label} fill={s.color} radius={[3, 3, 0, 0]} />
+          <Bar key={s.key} dataKey={s.key} name={s.label} fill={resolveColor(s.color)} radius={[3, 3, 0, 0]} />
         ))}
       </BarChart>
     )
@@ -137,7 +141,8 @@ export function ChartPanel({ id, config, data }: Props) {
           })}
         </div>
       )}
-      <ResponsiveContainer width="100%" height={280}>
+      {/* key={activeTheme.id} forces chart remount on theme switch so resolveColor() picks up new CSS var values */}
+      <ResponsiveContainer key={activeTheme.id} width="100%" height={280}>
         {chart as React.ReactElement}
       </ResponsiveContainer>
     </div>
