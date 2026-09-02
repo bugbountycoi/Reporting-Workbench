@@ -1,4 +1,5 @@
 import type { ThemeSpec } from './types'
+import { isThemeSpec } from './types'
 import { intigritiTheme } from './builtins/intigriti'
 import { communityTheme } from './builtins/community'
 
@@ -12,7 +13,7 @@ export function loadUserThemes(): ThemeSpec[] {
   try {
     const raw = localStorage.getItem(USER_THEMES_KEY)
     if (!raw) return []
-    return JSON.parse(raw) as ThemeSpec[]
+    return (JSON.parse(raw) as unknown[]).filter(isThemeSpec)
   } catch {
     return []
   }
