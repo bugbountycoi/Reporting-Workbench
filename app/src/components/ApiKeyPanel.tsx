@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { setToken, clearToken, enableLocalStorage, disableLocalStorage } from '../auth/store'
-import { buildAuthUrl, exchangeCode, scheduleRefresh, cancelRefreshSchedule } from '../auth/oauth'
+import { buildAuthUrl, exchangeCode, generatePKCE, scheduleRefresh, cancelRefreshSchedule } from '../auth/oauth'
 import { getPrograms } from '../api/endpoints/programs'
 import { getMockMode, setMockMode, getCacheMode, setCacheMode, getActiveApiVersion, setActiveApiVersion, API_CONFIG } from '../config/api'
 import { probeApiVersions, selectBestVersion, type VersionProbeResult } from '../api/versions'
@@ -64,10 +64,9 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
   )
   const [bearerInput, setBearerInput] = useState('')
   const [clientId, setClientId] = useState('')
-  const [clientSecret, setClientSecret] = useState('')
   const [oauthState] = useState(() => sessionStorage.getItem('inti_oauth_pending_state') ?? '')
   const [pendingClientId] = useState(() => sessionStorage.getItem('inti_oauth_pending_client_id') ?? '')
-  const [pendingClientSecret] = useState(() => sessionStorage.getItem('inti_oauth_pending_client_secret') ?? '')
+  const [pendingCodeVerifier] = useState(() => sessionStorage.getItem('inti_oauth_pending_code_verifier') ?? '')
   const [localStorageEnabled, setLocalStorageEnabled] = useState(false)
   const [testing, setTesting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -81,9 +80,9 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
       const { code, state } = (e as CustomEvent<{ code: string; state: string }>).detail
       if (state !== oauthState) return
       try {
-        const tokens = await exchangeCode(code, pendingClientId, pendingClientSecret)
+        const tokens = await exchangeCode(code, pendingClientId, pendingCodeVerifier)
         clearOAuthSession()
-        scheduleRefresh(pendingClientId, pendingClientSecret, tokens.expires_in)
+        scheduleRefresh(pendingClientId, tokens.expires_in)
         await onConnected()
         startVersionProbe()
       } catch (err) {
@@ -93,7 +92,7 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
     }
     window.addEventListener('oauth-callback', handler)
     return () => window.removeEventListener('oauth-callback', handler)
-  }, [oauthState, pendingClientId, pendingClientSecret, onConnected])
+  }, [oauthState, pendingClientId, pendingCodeVerifier, onConnected])
 
   // Clicking a source button is the primary action:
   //   Mock  → connect immediately with fixture data
@@ -198,23 +197,25 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
     window.location.reload()
   }
 
-  const handleOAuthAuthorise = () => {
-    if (!clientId.trim() || !clientSecret.trim()) return
+  const handleOAuthAuthorise = async () => {
+    if (!clientId.trim()) return
     const bytes = new Uint8Array(16)
     crypto.getRandomValues(bytes)
     const state = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
-    // Persist handshake values before navigating — React state is destroyed on redirect
+    const { verifier, challenge } = await generatePKCE()
+    // Persist handshake values before navigating — React state is destroyed on redirect.
+    // code_verifier is not a secret: it's single-use and worthless without the matching code.
     sessionStorage.setItem('inti_oauth_pending_state', state)
     sessionStorage.setItem('inti_oauth_pending_client_id', clientId.trim())
-    sessionStorage.setItem('inti_oauth_pending_client_secret', clientSecret.trim())
-    const url = buildAuthUrl(clientId.trim(), state)
+    sessionStorage.setItem('inti_oauth_pending_code_verifier', verifier)
+    const url = buildAuthUrl(clientId.trim(), state, challenge)
     window.location.href = url
   }
 
   const clearOAuthSession = () => {
     sessionStorage.removeItem('inti_oauth_pending_state')
     sessionStorage.removeItem('inti_oauth_pending_client_id')
-    sessionStorage.removeItem('inti_oauth_pending_client_secret')
+    sessionStorage.removeItem('inti_oauth_pending_code_verifier')
   }
 
   const handleClear = () => {
@@ -482,18 +483,10 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue"
                 autoComplete="off"
               />
-              <input
-                type="password"
-                placeholder="Client Secret"
-                value={clientSecret}
-                onChange={(e) => setClientSecret(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue"
-                autoComplete="off"
-              />
               <div className="flex items-center gap-3">
                 <button
                   onClick={handleOAuthAuthorise}
-                  disabled={!clientId.trim() || !clientSecret.trim()}
+                  disabled={!clientId.trim()}
                   className="px-4 py-2 bg-brand-navy text-white rounded-lg text-sm font-semibold hover:bg-brand-navy-light disabled:opacity-50 transition-colors"
                 >
                   Authorise with Intigriti →
