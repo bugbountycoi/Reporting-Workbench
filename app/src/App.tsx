@@ -18,10 +18,12 @@ import type { ReportModule, ReportData, ReportParams, AppContext } from './repor
 import type { UserModuleSpec } from './reports/userModules/types'
 import { isUserModuleSpec } from './reports/userModules/types'
 import { addUserModuleSpec, deleteUserModuleSpec, replaceUserModuleSpec } from './reports/userModules/store'
+import { importModuleFromUrl, ModuleLoadError } from './reports/userModules/loader'
 import { ReportBuilder } from './components/ReportBuilder'
 import type { ProgramOverviewViewModel } from './api/types'
 import { getMockMode, getCacheMode } from './config/api'
 import { DisclaimerModal, isDisclaimerAccepted } from './components/DisclaimerModal'
+import { ThemeSwitcher } from './components/ThemeSwitcher'
 import { saveWorkbenchConfig, loadWorkbenchConfig, type SavedModuleParams } from './config/savedConfig'
 
 const TOKEN_STORAGE_KEY = 'intigriti_workbench_token'
@@ -58,9 +60,18 @@ function SaveIcon({ className }: { className?: string }) {
   )
 }
 
+function InfoIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  )
+}
+
 export default function App() {
   const [appState, setAppState] = useState<'setup' | 'connected'>('setup')
   const [disclaimerAccepted, setDisclaimerAccepted] = useState(isDisclaimerAccepted)
+  const [disclaimerOpen, setDisclaimerOpen] = useState(false)
   const [programs, setPrograms] = useState<ProgramOverviewViewModel[]>([])
   const [selectedReport, setSelectedReport] = useState<ReportModule | null>(null)
   const [configPanelOpen, setConfigPanelOpen] = useState(true)
@@ -81,6 +92,10 @@ export default function App() {
   const [builderOpen, setBuilderOpen] = useState(false)
   const [editingSpec, setEditingSpec] = useState<UserModuleSpec | null>(null)
   const [importWarning, setImportWarning] = useState<string | null>(null)
+  const [urlImportOpen, setUrlImportOpen] = useState(false)
+  const [urlImportValue, setUrlImportValue] = useState('')
+  const [urlImportBusy, setUrlImportBusy] = useState(false)
+  const [urlImportError, setUrlImportError] = useState<string | null>(null)
   const [, forceRefresh] = useState(0)
 
   const importInputRef = useRef<HTMLInputElement>(null)
@@ -249,6 +264,31 @@ export default function App() {
     forceRefresh((n) => n + 1)
   }
 
+  const handleImportFromUrl = async () => {
+    if (!urlImportValue.trim()) return
+    setUrlImportError(null)
+    setUrlImportBusy(true)
+    try {
+      const specs = await importModuleFromUrl(urlImportValue.trim())
+      const hasCustomJs = specs.filter((s) => s.customTransform || s.customFetchData).map((s) => s.title)
+      if (hasCustomJs.length > 0) {
+        const ok = window.confirm(
+          `Warning: The following module(s) contain custom JavaScript that will execute in your browser:\n\n${hasCustomJs.join('\n')}\n\nOnly import modules from authors you trust.\n\nClick OK to continue, or Cancel to abort.`
+        )
+        if (!ok) { setUrlImportBusy(false); return }
+      }
+      for (const spec of specs) addUserModuleSpec(spec)
+      setImportWarning(hasCustomJs.length > 0 ? `Imported ${specs.length} module(s) — ${hasCustomJs.length} contain custom JavaScript.` : null)
+      setUrlImportOpen(false)
+      setUrlImportValue('')
+      forceRefresh((n) => n + 1)
+    } catch (err) {
+      setUrlImportError(err instanceof ModuleLoadError ? err.message : String(err))
+    } finally {
+      setUrlImportBusy(false)
+    }
+  }
+
   const handleDeleteModule = (id: string) => {
     const spec = getSpecById(id)
     if (!spec) return
@@ -307,44 +347,61 @@ export default function App() {
   const anyConfigPanelOpen =
     panelsOpen.api || (isConnected && (panelsOpen.cache || panelsOpen.encryption))
 
-  const headerActions = isConnected ? (
+  const headerActions = (
     <>
-      <button
-        onClick={handleSaveConfig}
-        title="Save configuration to browser storage for next session"
-        className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold text-white/80 hover:text-white hover:bg-white/10 transition-colors"
-      >
-        <SaveIcon className="w-3.5 h-3.5" />
-        {saveLabel ?? 'Save Config'}
-      </button>
+      {isConnected && (
+        <>
+          <button
+            onClick={handleSaveConfig}
+            title="Save configuration to browser storage for next session"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold text-white/80 hover:text-white hover:bg-white/10 transition-colors"
+          >
+            <SaveIcon className="w-3.5 h-3.5" />
+            {saveLabel ?? 'Save Config'}
+          </button>
 
-      <div className="w-px h-4 bg-white/20 mx-0.5" />
+          <div className="w-px h-4 bg-white/20 mx-0.5" />
+
+          <button
+            onClick={() => togglePanel('api')}
+            title={`API Connection${isConnected ? ' — configured' : ''} — click to ${panelsOpen.api ? 'hide' : 'show'}`}
+            className={`p-1.5 rounded-md transition-colors ${panelsOpen.api ? 'bg-white/15' : 'hover:bg-white/10'}`}
+          >
+            <NetworkIcon className={`w-4 h-4 ${isConnected ? 'text-green-400' : 'text-white/30'}`} />
+          </button>
+
+          <button
+            onClick={() => togglePanel('cache')}
+            title={`Cache Folder${cacheConfigured ? ' — configured' : ' — not configured'} — click to ${panelsOpen.cache ? 'hide' : 'show'}`}
+            className={`p-1.5 rounded-md transition-colors ${panelsOpen.cache ? 'bg-white/15' : 'hover:bg-white/10'}`}
+          >
+            <FolderIcon className={`w-4 h-4 ${cacheConfigured ? 'text-green-400' : 'text-white/30'}`} />
+          </button>
+
+          <button
+            onClick={() => togglePanel('encryption')}
+            title={`Encryption${encryptionConfigured ? ' — configured' : ' — not configured'} — click to ${panelsOpen.encryption ? 'hide' : 'show'}`}
+            className={`p-1.5 rounded-md transition-colors ${panelsOpen.encryption ? 'bg-white/15' : 'hover:bg-white/10'}`}
+          >
+            <LockIcon className={`w-4 h-4 ${encryptionConfigured ? 'text-green-400' : 'text-white/30'}`} />
+          </button>
+
+          <div className="w-px h-4 bg-white/20 mx-0.5" />
+        </>
+      )}
+
+      <ThemeSwitcher />
 
       <button
-        onClick={() => togglePanel('api')}
-        title={`API Connection${isConnected ? ' — configured' : ''} — click to ${panelsOpen.api ? 'hide' : 'show'}`}
-        className={`p-1.5 rounded-md transition-colors ${panelsOpen.api ? 'bg-white/15' : 'hover:bg-white/10'}`}
+        onClick={() => setDisclaimerOpen(true)}
+        title="View disclaimer"
+        className="p-1.5 rounded-md hover:bg-white/10 transition-colors"
+        aria-label="View disclaimer"
       >
-        <NetworkIcon className={`w-4 h-4 ${isConnected ? 'text-green-400' : 'text-white/30'}`} />
-      </button>
-
-      <button
-        onClick={() => togglePanel('cache')}
-        title={`Cache Folder${cacheConfigured ? ' — configured' : ' — not configured'} — click to ${panelsOpen.cache ? 'hide' : 'show'}`}
-        className={`p-1.5 rounded-md transition-colors ${panelsOpen.cache ? 'bg-white/15' : 'hover:bg-white/10'}`}
-      >
-        <FolderIcon className={`w-4 h-4 ${cacheConfigured ? 'text-green-400' : 'text-white/30'}`} />
-      </button>
-
-      <button
-        onClick={() => togglePanel('encryption')}
-        title={`Encryption${encryptionConfigured ? ' — configured' : ' — not configured'} — click to ${panelsOpen.encryption ? 'hide' : 'show'}`}
-        className={`p-1.5 rounded-md transition-colors ${panelsOpen.encryption ? 'bg-white/15' : 'hover:bg-white/10'}`}
-      >
-        <LockIcon className={`w-4 h-4 ${encryptionConfigured ? 'text-green-400' : 'text-white/30'}`} />
+        <InfoIcon className="w-4 h-4 text-white/60 hover:text-white/90" />
       </button>
     </>
-  ) : null
+  )
 
   if (!disclaimerAccepted) {
     return <DisclaimerModal onAccept={() => setDisclaimerAccepted(true)} />
@@ -352,6 +409,9 @@ export default function App() {
 
   return (
     <AppShell headerActions={headerActions}>
+      {disclaimerOpen && (
+        <DisclaimerModal viewOnly onAccept={() => setDisclaimerOpen(false)} />
+      )}
       {/* Config panels row */}
       {anyConfigPanelOpen && (
         <div className="flex flex-wrap gap-4 items-start mb-6" data-no-print>
@@ -401,13 +461,54 @@ export default function App() {
           <section>
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-lg font-heading font-semibold text-brand-navy">Reports</h2>
-              <button
-                onClick={() => importInputRef.current?.click()}
-                className="text-xs font-semibold text-gray-500 hover:text-brand-blue transition-colors"
-              >
-                Import module ↑
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => { setUrlImportOpen((v) => !v); setUrlImportError(null) }}
+                  className="text-xs font-semibold text-gray-500 hover:text-brand-blue transition-colors"
+                >
+                  Import from URL ↗
+                </button>
+                <button
+                  onClick={() => importInputRef.current?.click()}
+                  className="text-xs font-semibold text-gray-500 hover:text-brand-blue transition-colors"
+                >
+                  Import file ↑
+                </button>
+              </div>
             </div>
+
+            {urlImportOpen && (
+              <div className="mb-3 flex flex-col gap-1.5 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                <p className="text-xs text-gray-500">Paste a URL to a <code>.inti-module.json</code> file or a raw GitHub URL:</p>
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    value={urlImportValue}
+                    onChange={(e) => setUrlImportValue(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleImportFromUrl()}
+                    placeholder="https://example.com/module.inti-module.json"
+                    className="flex-1 text-xs border border-gray-300 rounded-md px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-brand-blue"
+                    autoFocus
+                  />
+                  <button
+                    onClick={handleImportFromUrl}
+                    disabled={urlImportBusy || !urlImportValue.trim()}
+                    className="text-xs font-semibold bg-brand-navy text-white rounded-md px-3 py-1.5 hover:bg-brand-navy-light disabled:opacity-40 transition-colors shrink-0"
+                  >
+                    {urlImportBusy ? 'Importing…' : 'Import'}
+                  </button>
+                  <button
+                    onClick={() => { setUrlImportOpen(false); setUrlImportError(null) }}
+                    className="text-xs text-gray-500 hover:text-gray-800 px-1"
+                  >
+                    ✕
+                  </button>
+                </div>
+                {urlImportError && (
+                  <p className="text-xs text-red-600 bg-red-50 rounded p-2">{urlImportError}</p>
+                )}
+              </div>
+            )}
 
             {importWarning && (
               <div className="mb-3 px-4 py-2 bg-amber-100 border border-amber-300 rounded-lg text-amber-800 text-xs font-medium flex items-center justify-between">

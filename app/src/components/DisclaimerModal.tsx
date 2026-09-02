@@ -7,15 +7,16 @@ export function isDisclaimerAccepted(): boolean {
 }
 
 interface Props {
-  onAccept: () => void
+  onAccept?: () => void
+  viewOnly?: boolean
 }
 
-export function DisclaimerModal({ onAccept }: Props) {
+export function DisclaimerModal({ onAccept, viewOnly = false }: Props) {
   const [checked, setChecked] = useState(false)
 
   function handleAccept() {
     localStorage.setItem(STORAGE_KEY, 'true')
-    onAccept()
+    onAccept?.()
   }
 
   return (
@@ -88,25 +89,37 @@ export function DisclaimerModal({ onAccept }: Props) {
 
         {/* Footer */}
         <div className="px-6 py-5 border-t border-gray-200 space-y-4 shrink-0">
-          <label className="flex items-start gap-3 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={checked}
-              onChange={(e) => setChecked(e.target.checked)}
-              className="mt-0.5 accent-brand-blue shrink-0"
-            />
-            <span className="text-sm text-gray-700">
-              I have read, understood, and agree to these terms.
-            </span>
-          </label>
-          <button
-            onClick={handleAccept}
-            disabled={!checked}
-            className="w-full px-4 py-2.5 bg-brand-navy text-white rounded-lg font-semibold text-sm
-                       hover:bg-brand-navy-light disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-          >
-            Continue
-          </button>
+          {viewOnly ? (
+            <button
+              onClick={onAccept}
+              className="w-full px-4 py-2.5 bg-brand-navy text-white rounded-lg font-semibold text-sm
+                         hover:bg-brand-navy-light transition-colors"
+            >
+              Close
+            </button>
+          ) : (
+            <>
+              <label className="flex items-start gap-3 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={(e) => setChecked(e.target.checked)}
+                  className="mt-0.5 accent-brand-blue shrink-0"
+                />
+                <span className="text-sm text-gray-700">
+                  I have read, understood, and agree to these terms.
+                </span>
+              </label>
+              <button
+                onClick={handleAccept}
+                disabled={!checked}
+                className="w-full px-4 py-2.5 bg-brand-navy text-white rounded-lg font-semibold text-sm
+                           hover:bg-brand-navy-light disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                Continue
+              </button>
+            </>
+          )}
         </div>
 
       </div>
