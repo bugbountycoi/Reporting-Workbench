@@ -3,13 +3,12 @@
  * All user-created AND bundled modules run through this interpreter.
  */
 import type { ReportModule, ReportData, ReportParams, ParamField } from '../types'
-import type { UserModuleSpec, FetchCtx } from './types'
+import type { UserModuleSpec } from './types'
 import { specChartConfig } from './types'
 import { declarativeTransform } from './transform'
 import { getProgramSubmissions } from '../../api/endpoints/programs'
 import { getAllPayouts } from '../../api/endpoints/payouts'
 import { getProgramDetail } from '../../api/endpoints/programs'
-import { apiGet } from '../../api/client'
 import { INTERVAL_OPTIONS } from '../../utils/intervals'
 import type { ProgramOverviewViewModel } from '../../api/types'
 
@@ -24,67 +23,82 @@ const EMPTY_REPORT_DATA: ReportData = {
   ],
 }
 
-function buildFetchCtx(): FetchCtx {
-  return {
-    getProgramSubmissions: (id, _startDate, _endDate) =>
-      getProgramSubmissions(id) as Promise<unknown[]>,
-    getAllPayouts: () => getAllPayouts() as Promise<unknown[]>,
-    getProgramDetail: (id) => getProgramDetail(id) as Promise<unknown>,
-    apiGet,
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Custom function execution helpers
 // ---------------------------------------------------------------------------
 
-// Spawns a short-lived Worker to run custom transform or summaryFormatter code.
-// Workers have no access to the parent page's localStorage, sessionStorage, or DOM.
+function makeWorkerId(): string {
+  const b = new Uint8Array(8)
+  crypto.getRandomValues(b)
+  return Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('')
+}
+
+// Spawns a short-lived Worker to run custom code in isolation.
+// For 'fetchData' jobs the Worker proxies API calls back here via postMessage
+// so user code can still call ctx.getProgramSubmissions / getAllPayouts /
+// getProgramDetail — but only those three, and through this controlled bridge.
 function runInWorker<T>(
-  type: 'transform' | 'summaryFormatter',
+  type: 'transform' | 'summaryFormatter' | 'fetchData',
   body: string,
   args: unknown[],
+  timeoutMs = 10_000,
 ): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const worker = new Worker(new URL('./moduleWorker.ts', import.meta.url), { type: 'module' })
-    const idBytes = new Uint8Array(8)
-    crypto.getRandomValues(idBytes)
-    const id = Array.from(idBytes, (b) => b.toString(16).padStart(2, '0')).join('')
+    const id = makeWorkerId()
     const timer = setTimeout(() => {
       worker.terminate()
-      reject(new Error('Custom module timed out after 10 s'))
-    }, 10_000)
-    worker.onmessage = (e: MessageEvent) => {
-      if (e.data.id !== id) return
+      reject(new Error(`Custom module timed out after ${timeoutMs / 1000} s`))
+    }, timeoutMs)
+
+    worker.onmessage = async (e: MessageEvent) => {
+      const msg = e.data as Record<string, unknown>
+
+      // API proxy request from Worker — execute on main thread and return result
+      if (msg.type === 'apiRequest') {
+        try {
+          const result = await handleApiProxy(
+            msg.method as string,
+            msg.args as unknown[],
+          )
+          worker.postMessage({ type: 'apiResponse', requestId: msg.requestId, ok: true, result })
+        } catch (err) {
+          worker.postMessage({ type: 'apiResponse', requestId: msg.requestId, ok: false, error: String(err) })
+        }
+        return
+      }
+
+      // Final job result
+      if (msg.id !== id) return
       clearTimeout(timer)
       worker.terminate()
-      if (e.data.ok) resolve(e.data.result as T)
-      else reject(new Error(e.data.error as string))
+      if (msg.ok) resolve(msg.result as T)
+      else reject(new Error(msg.error as string))
     }
+
     worker.onerror = (e) => {
       clearTimeout(timer)
       worker.terminate()
       reject(new Error(e.message))
     }
+
     worker.postMessage({ id, type, body, args })
   })
 }
 
-// Global names shadowed before executing customFetchData in the main thread.
-// customFetchData must stay in the main thread so it can use the API ctx functions,
-// but we prevent it from reading locally-stored credentials.
-const FETCH_GLOBALS_SHADOW = [
-  'const localStorage = undefined, sessionStorage = undefined,',
-  '      indexedDB = undefined, caches = undefined,',
-  '      window = undefined, document = undefined,',
-  '      navigator = undefined, location = undefined;',
-].join('\n')
-
-// Runs a custom fetch body: async (params, ctx) => unknown
-async function runCustomFetch(body: string, params: ReportParams): Promise<unknown> {
-  const fetchCtx = buildFetchCtx()
-  const fn = new Function('params', 'ctx', `return (async function() {\n${FETCH_GLOBALS_SHADOW}\n${body}\n})()`)
-  return fn(params, fetchCtx) as Promise<unknown>
+// Main-thread allow-list for Worker API proxy requests (N-1, N-3).
+// Only these three named endpoints are permitted — no raw path access.
+async function handleApiProxy(method: string, args: unknown[]): Promise<unknown> {
+  switch (method) {
+    case 'getProgramSubmissions':
+      return getProgramSubmissions(args[0] as string)
+    case 'getAllPayouts':
+      return getAllPayouts()
+    case 'getProgramDetail':
+      return getProgramDetail(args[0] as string)
+    default:
+      throw new Error(`Custom module called disallowed API method: ${method}`)
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -206,7 +220,7 @@ export function specToModule(spec: UserModuleSpec, programs: ProgramOverviewView
 
     async fetchData(params: ReportParams): Promise<unknown> {
       if (spec.customFetchData) {
-        return runCustomFetch(spec.customFetchData, params)
+        return runInWorker('fetchData', spec.customFetchData, [params])
       }
 
       // Declarative fetch

@@ -106,12 +106,12 @@ export interface UserModuleSpec {
   storedSamplePreview?: ReportData
 }
 
-// Context object passed to customFetchData(params, ctx)
+// Context object passed to customFetchData(params, ctx).
+// Only these three named helpers are available — no raw apiGet.
 export interface FetchCtx {
   getProgramSubmissions: (id: string, startDate?: string, endDate?: string) => Promise<unknown[]>
   getAllPayouts: () => Promise<unknown[]>
   getProgramDetail: (id: string) => Promise<unknown>
-  apiGet: <T>(endpoint: string) => Promise<T>
 }
 
 // Context object passed to customTransform(raw, params, programs, ctx)

@@ -1,8 +1,17 @@
 /**
  * Web Worker for executing custom module JavaScript in an isolated scope.
  * Workers have no access to the parent page's localStorage, sessionStorage,
- * cookies, or DOM — so custom transform/summaryFormatter code cannot read
- * stored credentials even if authored maliciously.
+ * cookies, or DOM — so custom code cannot read stored credentials even if
+ * authored maliciously.
+ *
+ * Handles three job types:
+ *   transform         — user's transform(raw, params, programs, ctx) body
+ *   summaryFormatter  — user's summaryFormatter(data) body
+ *   fetchData         — user's fetchData(params, ctx) body
+ *
+ * fetchData is also isolated here (not in the main thread) so that it has no
+ * access to localStorage/sessionStorage/fetch. API calls are proxied back to
+ * the main thread via postMessage using an explicit allow-list.
  */
 import { bucketKey, allBuckets, INTERVAL_OPTIONS } from '../../utils/intervals'
 import { daysBetween } from '../../utils/dates'
@@ -19,18 +28,78 @@ const TRANSFORM_CTX: TransformCtx = {
   INTERVAL_OPTIONS,
 }
 
-interface WorkerMessage {
+// ---------------------------------------------------------------------------
+// API proxy — routes ctx.* calls back to the main thread
+// ---------------------------------------------------------------------------
+
+type AllowedMethod = 'getProgramSubmissions' | 'getAllPayouts' | 'getProgramDetail'
+
+const pendingApiRequests = new Map<string, {
+  resolve: (value: unknown) => void
+  reject: (reason: Error) => void
+}>()
+
+function apiProxy(method: AllowedMethod, args: unknown[]): Promise<unknown> {
+  const reqBytes = new Uint8Array(8)
+  crypto.getRandomValues(reqBytes)
+  const requestId = Array.from(reqBytes, (b) => b.toString(16).padStart(2, '0')).join('')
+  return new Promise<unknown>((resolve, reject) => {
+    pendingApiRequests.set(requestId, { resolve, reject })
+    self.postMessage({ type: 'apiRequest', requestId, method, args })
+  })
+}
+
+const FETCH_CTX = {
+  getProgramSubmissions: (id: string) => apiProxy('getProgramSubmissions', [id]),
+  getAllPayouts: () => apiProxy('getAllPayouts', []),
+  getProgramDetail: (id: string) => apiProxy('getProgramDetail', [id]),
+}
+
+// ---------------------------------------------------------------------------
+// Message types
+// ---------------------------------------------------------------------------
+
+interface ApiResponseMessage {
+  type: 'apiResponse'
+  requestId: string
+  ok: boolean
+  result?: unknown
+  error?: string
+}
+
+interface JobMessage {
   id: string
-  type: 'transform' | 'summaryFormatter'
+  type: 'transform' | 'summaryFormatter' | 'fetchData'
   body: string
   args: unknown[]
 }
 
-self.onmessage = (e: MessageEvent<WorkerMessage>) => {
-  const { id, type, body, args } = e.data
+// ---------------------------------------------------------------------------
+// Message handler
+// ---------------------------------------------------------------------------
+
+self.onmessage = async (e: MessageEvent<ApiResponseMessage | JobMessage>) => {
+  const msg = e.data
+
+  // Route API response to the pending proxy promise
+  if (msg.type === 'apiResponse') {
+    const pending = pendingApiRequests.get(msg.requestId)
+    if (pending) {
+      pendingApiRequests.delete(msg.requestId)
+      if (msg.ok) pending.resolve(msg.result)
+      else pending.reject(new Error(msg.error))
+    }
+    return
+  }
+
+  const { id, type, body, args } = msg as JobMessage
   try {
     let result: unknown
-    if (type === 'transform') {
+    if (type === 'fetchData') {
+      const [params] = args
+      const fn = new Function('params', 'ctx', `return (async function() {\n${body}\n})()`)
+      result = await (fn(params, FETCH_CTX) as Promise<unknown>)
+    } else if (type === 'transform') {
       const [raw, params, programs] = args
       const fn = new Function('raw', 'params', 'programs', 'ctx', body)
       result = fn(raw, params, programs, TRANSFORM_CTX)
