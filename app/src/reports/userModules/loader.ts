@@ -3,6 +3,11 @@ import { isUserModuleSpec, type UserModuleSpec } from './types'
 export class ModuleLoadError extends Error {}
 
 export async function importModuleFromUrl(url: string): Promise<UserModuleSpec[]> {
+  try {
+    if (new URL(url).protocol !== 'https:') throw new ModuleLoadError('Only https:// URLs are permitted.')
+  } catch (e) {
+    throw e instanceof ModuleLoadError ? e : new ModuleLoadError(`Invalid URL: ${url}`)
+  }
   let response: Response
   try {
     response = await fetch(url, { signal: AbortSignal.timeout(15000) })

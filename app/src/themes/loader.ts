@@ -15,6 +15,11 @@ export async function installThemeFromJson(json: unknown): Promise<ThemeSpec> {
 }
 
 export async function installThemeFromUrl(url: string): Promise<ThemeSpec> {
+  try {
+    if (new URL(url).protocol !== 'https:') throw new ThemeLoadError('Only https:// URLs are permitted.')
+  } catch (e) {
+    throw e instanceof ThemeLoadError ? e : new ThemeLoadError(`Invalid URL: ${url}`)
+  }
   let response: Response
   try {
     response = await fetch(url, { signal: AbortSignal.timeout(15000) })
