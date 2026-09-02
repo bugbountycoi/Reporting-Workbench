@@ -1,4 +1,4 @@
-# Intigriti Reporting Workbench
+# Reporting Workbench Community Edition
 
 A local, private reporting tool for [Intigriti](https://www.intigriti.com/) API data. All computation happens on your machine — your API token never leaves your browser except to reach the Intigriti API directly.
 
@@ -15,10 +15,12 @@ A local, private reporting tool for [Intigriti](https://www.intigriti.com/) API 
 - [Requirements](#requirements)
 - [Install](#install)
 - [Run the tool](#run-the-tool)
+- [Disclaimer](#disclaimer)
 - [Choose a data source](#choose-a-data-source)
 - [Generate reports](#generate-reports)
 - [Save your configuration](#save-your-configuration)
 - [Local data cache](#local-data-cache)
+- [Themes](#themes)
 - [Build a new report module](#build-a-new-report-module)
 - [Share a report module](#share-a-report-module)
 - [Import a shared module](#import-a-shared-module)
@@ -57,8 +59,8 @@ If someone gave you a `.zip` file, unzip it and launch with the script for your 
 
 **macOS / Linux**
 ```bash
-unzip intigriti-reporting-workbench-*.zip
-cd intigriti-reporting-workbench
+unzip reporting-workbench-*.zip
+cd reporting-workbench
 ./start.sh
 ```
 
@@ -68,7 +70,7 @@ double-click start.bat
 ```
 or from CMD:
 ```
-cd intigriti-reporting-workbench
+cd reporting-workbench
 start.bat
 ```
 
@@ -80,7 +82,7 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 ```
 Then:
 ```powershell
-cd intigriti-reporting-workbench
+cd reporting-workbench
 .\start.ps1
 ```
 
@@ -117,6 +119,16 @@ npm run dev:mock
 ```
 
 All reports load instantly from bundled fixture data. Use this to explore the tool, develop new modules, or demo the workbench without credentials.
+
+---
+
+## Disclaimer
+
+When the workbench first opens, a disclaimer modal appears. You must read and acknowledge it before the app becomes accessible.
+
+This is a **community-built framework** — it is a starting point for further development, not a finished product, and is not affiliated with or endorsed by any company. You are responsible for reviewing, adapting, and hardening it to meet your own requirements.
+
+Click the **ⓘ info icon** in the header at any time to re-read the disclaimer.
 
 ---
 
@@ -248,6 +260,82 @@ Once you have cache files, switch to **Local Cache** in the Data Source panel an
 
 ---
 
+## Themes
+
+The workbench supports switchable themes — portable JSON packages that control colours, fonts, logo, and footer text.
+
+### Switch themes
+
+Click the **palette icon** (🎨) in the header to open the Theme Switcher. Two themes are built in:
+
+| Theme | Description |
+|---|---|
+| **Intigriti** | Default — dark navy and blue palette, Montserrat + Open Sans fonts |
+| **Community Edition** | Teal and robins-egg blue palette, system fonts |
+
+Click any theme name to activate it instantly — no page reload required. Your choice persists in browser storage across sessions.
+
+### Install a theme from a file
+
+1. Click the palette icon to open the Theme Switcher.
+2. Click **Install from file**.
+3. Select a `.json` theme package file.
+
+### Install a theme from a URL
+
+1. Click the palette icon to open the Theme Switcher.
+2. Click **Install from URL**.
+3. Paste a URL pointing to a publicly hosted theme JSON file (e.g. a GitHub release asset).
+4. Click **Install**.
+
+> If the URL's server does not allow cross-origin requests (CORS), download the file manually and use **Install from file** instead.
+
+### The ThemeSpec format
+
+A theme package is a plain JSON file with this shape:
+
+```json
+{
+  "id": "my-theme",
+  "name": "My Theme",
+  "author": "Your Name",
+  "version": "1.0.0",
+  "colors": {
+    "navy": "#0f3f45",
+    "navyLight": "#174f57",
+    "navyMid": "#1f6470",
+    "blue": "#00B4D8",
+    "blueDark": "#0096B7",
+    "blueLight": "#38C9E0",
+    "orange": "#E99C4A",
+    "orangeDark": "#C47E35",
+    "red": "#F03157",
+    "green": "#02A87C",
+    "gold": "#E0AC00",
+    "sky": "#B2EBF2",
+    "grayDark": "#4a5568",
+    "grayMid": "#718096",
+    "grayLight": "#E2E8F0",
+    "offWhite": "#F0FDFD",
+    "nearWhite": "#F7FFFE"
+  },
+  "fonts": {
+    "heading": "system-ui, -apple-system, sans-serif",
+    "body": "system-ui, -apple-system, sans-serif"
+  },
+  "logoSvg": "<svg>...</svg>",
+  "footerText": "Community Edition — data stays on your device"
+}
+```
+
+`logoSvg` is an SVG string rendered in the header. Dark-path SVGs appear correctly against the header background — a CSS filter inverts them to white automatically. `footerText` appears in the page footer after "Reporting Workbench — ".
+
+### Remove a user-installed theme
+
+Open the Theme Switcher, hover over the theme row, and click the **✕** that appears on the right. Built-in themes cannot be removed.
+
+---
+
 ## Build a new report module
 
 The workbench includes an in-app **Report Builder** — a 6-step wizard that lets you create custom report modules without writing any code. For modules that need custom logic, a JavaScript escape hatch is available.
@@ -281,11 +369,11 @@ See [REPORT_MODULE_GUIDE.md](./REPORT_MODULE_GUIDE.md) for the full context API 
 
 ## Share a report module
 
-Any module — including the five built-in ones — can be exported as a portable `.inti-module.json` file:
+Any module — including the five built-in ones — can be exported as a portable `.rwce-module.json` file:
 
 1. In the report tile grid, hover over the module you want to share.
 2. Click the **Export** icon on the tile.
-3. A `.inti-module.json` file downloads to your device.
+3. A `.rwce-module.json` file downloads to your device.
 
 Send the file to whoever needs it. They import it in seconds — see below.
 
@@ -293,14 +381,29 @@ Send the file to whoever needs it. They import it in seconds — see below.
 
 ## Import a shared module
 
-If someone sends you a `.inti-module.json` file:
+### From a file
 
-1. Click the **Import** icon at the top of the report tile grid.
-2. Select one or more `.inti-module.json` files in the file picker.
+If someone sends you a `.rwce-module.json` file:
+
+1. Click **Import file ↑** at the top right of the report tile grid.
+2. Select one or more `.rwce-module.json` files in the file picker.
 3. If a module contains custom JavaScript, a security confirmation prompt appears before it is loaded.
 4. The module appears immediately in the tile grid and persists across sessions (stored in browser localStorage).
 
-To remove a module, click the **Delete** icon on its tile.
+### From a URL
+
+To import a module published online (e.g. a GitHub release asset or gist):
+
+1. Click **Import from URL ↗** at the top right of the report tile grid.
+2. Paste the direct URL to the `.rwce-module.json` file.
+3. Press **Enter** or click **Import**.
+4. If the module contains custom JavaScript, a security confirmation prompt appears before it is loaded.
+
+> If the server does not allow cross-origin requests (CORS), download the file manually and use the file importer instead.
+
+### Remove a module
+
+Click the **Delete** icon on the module tile. Built-in modules cannot be deleted.
 
 ---
 
@@ -322,7 +425,7 @@ bash scripts/package.sh
 Each run auto-increments the build number and produces a file like:
 
 ```
-dist/intigriti-reporting-workbench-0.2.005.zip
+dist/reporting-workbench-0.2.005.zip
 ```
 
 The zip contains only the pre-built app — no source code:
@@ -350,6 +453,7 @@ Recipients who have Node.js installed can be up and running in under a minute.
 | Token not stored unless you opt in | `enableLocalStorage()` is only called when the user explicitly checks "Remember on this device" |
 | Program data not stored in config | Saved config uses 1-based position indices, not program IDs or names |
 | CORS handled locally | No third-party proxy — the server runs on your machine |
+| Theme/module URL fetching | Fetch calls go directly from your browser to the URL you provide — no intermediary |
 
 ---
 
@@ -358,24 +462,25 @@ Recipients who have Node.js installed can be up and running in under a minute.
 ```
 app/
   src/
-    api/          API client, Zod-validated types, and endpoint helpers
-    auth/         In-memory token store and OAuth 2.0 flow
-    cache/        File System Access API integration and AES-256-GCM encryption
-    components/   Shared React UI components (panels, charts, tables, export)
-    config/       API base URL, mock/cache mode flags, and config persistence
-    fixtures/     Bundled sample JSON for mock mode and sample previews
-    reports/      Report module specs, central registry, and user module store
-    utils/        Date helpers, CSV export, image capture, secret redaction
+    api/            API client, Zod-validated types, and endpoint helpers
+    auth/           In-memory token store and OAuth 2.0 flow
+    cache/          File System Access API integration and AES-256-GCM encryption
+    components/     Shared React UI components (panels, charts, tables, export)
+    config/         API base URL, mock/cache mode flags, and config persistence
+    fixtures/       Bundled sample JSON for mock mode and sample previews
+    reports/        Report module specs, central registry, and user module store
+    themes/         ThemeSpec types, built-in themes, apply/store/loader utilities
+    utils/          Date helpers, CSV export, image capture, secret redaction
   public/
-    fonts/        Montserrat and Open Sans served locally
+    fonts/          Montserrat and Open Sans served locally
     intigriti-logo.svg
   index.html
-  vite.config.ts  Vite dev-server proxy configuration
+  vite.config.ts    Vite dev-server proxy configuration
 
 scripts/
-  package.sh      Release packaging and module install/export utilities
+  package.sh        Release packaging script
 
-server.mjs        Standalone production server (no npm install needed)
+server.mjs          Standalone production server (no npm install needed)
 ```
 
 ---
@@ -395,4 +500,6 @@ server.mjs        Standalone production server (no npm install needed)
 | Encrypted cache files unreadable | You must provide the same passphrase used when the files were written |
 | Local Cache: "no cached programs found" | Connect via Live API first with a cache folder active, then run at least one report |
 | Imported module not appearing | Refresh the page; confirm any security prompt that appears when loading modules with custom JavaScript |
-| Module lost after browser data clear | Re-import the `.inti-module.json` file — user modules are stored in browser localStorage |
+| Module lost after browser data clear | Re-import the `.rwce-module.json` file — user modules are stored in browser localStorage |
+| Theme URL install fails with CORS error | Download the theme JSON file and use **Install from file** instead |
+| Theme lost after browser data clear | Re-install the theme from file or URL — user themes are stored in browser localStorage |

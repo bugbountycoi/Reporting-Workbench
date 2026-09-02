@@ -1,6 +1,6 @@
 # Report Module Guide
 
-This guide covers creating, customising, exporting, and importing report modules in the Intigriti Reporting Workbench. No TypeScript or coding knowledge is required for basic modules; a JavaScript escape hatch is available for advanced logic.
+This guide covers creating, customising, exporting, and importing report modules in the Reporting Workbench Community Edition. No TypeScript or coding knowledge is required for basic modules; a JavaScript escape hatch is available for advanced logic.
 
 ---
 
@@ -205,7 +205,7 @@ return {
 
 1. In the tile grid, hover over the module tile you want to share.
 2. Click the **Export** icon.
-3. A `.inti-module.json` file is downloaded.
+3. A `.rwce-module.json` file is downloaded.
 
 The file contains the complete `UserModuleSpec` — title, description, parameters, logic, and sample fixture data. Send it to anyone who needs the module; no source code installation is required on their end.
 
@@ -215,18 +215,33 @@ Built-in modules (the five that ship with the workbench) can also be exported.
 
 ## Import a module
 
-1. Click the **Import** icon at the top of the tile grid.
-2. Select one or more `.inti-module.json` files from the file picker.
+### From a file
+
+1. Click **Import file ↑** at the top right of the report tile grid.
+2. Select one or more `.rwce-module.json` files from the file picker.
 3. If a module contains `customFetchData` or `customTransform`, a security confirmation appears before it is loaded.
 4. The module appears immediately in the tile grid and is stored in browser localStorage, persisting across sessions.
 
-To remove a module, click the **Delete** icon on its tile.
+### From a URL
+
+To import a module published online (e.g. a GitHub release asset or gist):
+
+1. Click **Import from URL ↗** at the top right of the report tile grid.
+2. Paste the direct URL to a `.rwce-module.json` file.
+3. Press **Enter** or click **Import**.
+4. If the module contains custom JavaScript, a security confirmation appears before it is loaded.
+
+> If the server does not support CORS, download the file manually and use the file importer instead.
+
+### Remove a module
+
+Click the **Delete** icon on its tile. Built-in modules cannot be deleted.
 
 ---
 
 ## The UserModuleSpec format
 
-Exported `.inti-module.json` files are plain JSON. You can write one by hand or edit an exported file — useful when scripting bulk creation or tweaking colours without reopening the wizard.
+Exported `.rwce-module.json` files are plain JSON. You can write one by hand or edit an exported file — useful when scripting bulk creation or tweaking colours without reopening the wizard.
 
 ```json
 {
@@ -316,3 +331,4 @@ Call any path via `ctx.apiGet(path)` in `customFetchData`. The path is relative 
 - **Summary card values**: numeric values render as a large number; string values render as plain text.
 - **Editing a built-in module**: built-in modules cannot be edited in-place. Export the module first, then import the exported file to create a user-owned editable copy.
 - **Version your modules**: increment `version` whenever you share an update so recipients know whether they have the latest.
+- **Sharing via URL**: host your `.rwce-module.json` file on any static server (GitHub releases, GitHub Pages, a CDN). Recipients can paste the direct URL into the **Import from URL** field — no file download required.
