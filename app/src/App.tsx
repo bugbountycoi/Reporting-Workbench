@@ -245,7 +245,7 @@ export default function App() {
             continue
           }
           valid.push(obj as UserModuleSpec)
-          if ((obj as UserModuleSpec).customTransform || (obj as UserModuleSpec).customFetchData) {
+          if ((obj as UserModuleSpec).customTransform || (obj as UserModuleSpec).customFetchData || (obj as UserModuleSpec).customSummaryFormatter) {
             hasCustomJs.push((obj as UserModuleSpec).title)
           }
         }
@@ -277,7 +277,7 @@ export default function App() {
     setUrlImportBusy(true)
     try {
       const specs = await importModuleFromUrl(urlImportValue.trim())
-      const hasCustomJs = specs.filter((s) => s.customTransform || s.customFetchData).map((s) => s.title)
+      const hasCustomJs = specs.filter((s) => s.customTransform || s.customFetchData || s.customSummaryFormatter).map((s) => s.title)
       if (hasCustomJs.length > 0) {
         const ok = window.confirm(
           `Warning: The following module(s) contain custom JavaScript that will execute in your browser:\n\n${hasCustomJs.join('\n')}\n\nOnly import modules from authors you trust.\n\nClick OK to continue, or Cancel to abort.`
