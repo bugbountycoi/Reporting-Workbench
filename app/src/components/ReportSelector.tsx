@@ -8,19 +8,36 @@ const CATEGORY_LABELS: Record<string, string> = {
   developer: 'Developer',
 }
 
-const CATEGORY_COLORS: Record<string, string> = {
-  triage:    'bg-blue-100 text-blue-700',
-  bounty:    'bg-green-100 text-green-700',
-  snapshot:  'bg-purple-100 text-purple-700',
-  developer: 'bg-gray-100 text-gray-600',
+/** Maps each category to a pair of brand CSS custom properties used for chip/badge coloring. */
+const CATEGORY_CSS: Record<string, { bg: string; text: string }> = {
+  triage:    { bg: 'var(--brand-blue)',      text: 'var(--brand-blue-dark)' },
+  bounty:    { bg: 'var(--brand-green)',     text: 'var(--brand-green)' },
+  snapshot:  { bg: 'var(--brand-orange)',    text: 'var(--brand-orange-dark)' },
+  developer: { bg: 'var(--brand-gray-mid)',  text: 'var(--brand-gray-dark)' },
 }
 
-// Selected (active filter) chip styles — slightly richer background
-const CATEGORY_ACTIVE: Record<string, string> = {
-  triage:    'bg-blue-200 text-blue-800 ring-1 ring-blue-400',
-  bounty:    'bg-green-200 text-green-800 ring-1 ring-green-400',
-  snapshot:  'bg-purple-200 text-purple-800 ring-1 ring-purple-400',
-  developer: 'bg-gray-200 text-gray-700 ring-1 ring-gray-400',
+function getBadgeStyle(cat: string): React.CSSProperties {
+  const css = CATEGORY_CSS[cat] ?? CATEGORY_CSS.triage
+  return {
+    background: `color-mix(in srgb, ${css.bg} 15%, transparent)`,
+    color: css.text,
+  }
+}
+
+function getChipStyle(cat: string, active: boolean): React.CSSProperties {
+  if (!active) {
+    return {
+      background: 'color-mix(in srgb, var(--brand-gray-mid) 10%, transparent)',
+      color: 'var(--brand-gray-mid)',
+      outline: '1px solid color-mix(in srgb, var(--brand-gray-mid) 30%, transparent)',
+    }
+  }
+  const css = CATEGORY_CSS[cat] ?? CATEGORY_CSS.triage
+  return {
+    background: `color-mix(in srgb, ${css.bg} 22%, transparent)`,
+    color: css.text,
+    outline: `1px solid ${css.bg}`,
+  }
 }
 
 interface Props {
@@ -48,17 +65,17 @@ export function ReportSelector({
   onEdit,
   onDelete,
 }: Props) {
-  // Derive categories present in the current report list, in display order
   const availableCategories = useMemo(() => {
     const order = Object.keys(CATEGORY_LABELS)
     const present = new Set<string>(reports.map((r) => r.category))
     return order.filter((c) => present.has(c))
   }, [reports])
 
-  // All categories active by default — deselecting a chip hides that category
   const [activeCategories, setActiveCategories] = useState<Set<string>>(
     () => new Set<string>(availableCategories)
   )
+
+  const [createHovered, setCreateHovered] = useState(false)
 
   function toggleCategory(cat: string) {
     setActiveCategories((prev) => {
@@ -88,9 +105,8 @@ export function ReportSelector({
               <button
                 key={cat}
                 onClick={() => toggleCategory(cat)}
-                className={`text-xs rounded-full px-2.5 py-1 font-semibold transition-all select-none ${
-                  active ? CATEGORY_ACTIVE[cat] : 'bg-gray-50 text-gray-400 ring-1 ring-gray-200'
-                }`}
+                className="text-xs rounded-full px-2.5 py-1 font-semibold transition-all select-none"
+                style={getChipStyle(cat, active)}
                 aria-pressed={active}
               >
                 {CATEGORY_LABELS[cat]}
@@ -115,13 +131,17 @@ export function ReportSelector({
               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onSelect(report) }}
               className={`relative text-left p-4 rounded-xl border transition-all cursor-pointer ${
                 isSelected
-                  ? 'border-brand-blue bg-blue-50 shadow-sm'
+                  ? 'border-brand-blue shadow-sm'
                   : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
               }`}
+              style={isSelected ? { backgroundColor: 'color-mix(in srgb, var(--brand-blue) 8%, transparent)' } : undefined}
             >
               <div className="flex items-start justify-between gap-2 mb-1.5">
                 <span className="font-heading font-medium text-gray-900 text-sm leading-snug">{report.title}</span>
-                <span className={`text-xs rounded-full px-2 py-0.5 font-semibold shrink-0 ${CATEGORY_COLORS[report.category]}`}>
+                <span
+                  className="text-xs rounded-full px-2 py-0.5 font-semibold shrink-0"
+                  style={getBadgeStyle(report.category)}
+                >
                   {CATEGORY_LABELS[report.category]}
                 </span>
               </div>
@@ -181,7 +201,16 @@ export function ReportSelector({
         {/* Create new report tile */}
         <button
           onClick={onCreateNew}
-          className="text-left p-4 rounded-xl border-2 border-dashed border-gray-200 bg-white hover:border-brand-blue hover:bg-blue-50 transition-all cursor-pointer flex flex-col items-center justify-center gap-2 min-h-[110px]"
+          onMouseEnter={() => setCreateHovered(true)}
+          onMouseLeave={() => setCreateHovered(false)}
+          className="text-left p-4 rounded-xl border-2 border-dashed transition-all cursor-pointer flex flex-col items-center justify-center gap-2 min-h-[110px]"
+          style={createHovered ? {
+            borderColor: 'var(--brand-blue)',
+            backgroundColor: 'color-mix(in srgb, var(--brand-blue) 8%, transparent)',
+          } : {
+            borderColor: 'rgb(229 231 235)',
+            backgroundColor: 'white',
+          }}
         >
           <span className="text-3xl text-gray-300 leading-none select-none">+</span>
           <span className="text-xs font-semibold text-gray-400">Create report module</span>
