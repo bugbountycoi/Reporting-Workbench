@@ -35,3 +35,4 @@ yarn-error.log*
 # Ai agents
 .claude/launch.json
 /.claude
+cloudflare/package-lock.json
