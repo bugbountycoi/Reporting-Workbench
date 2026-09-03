@@ -90,6 +90,16 @@ export default {
       return fetch(upstream)
     }
 
+    // Proxy /oauth/token → https://login.intigriti.com/connect/token
+    // Same-origin so the browser's OAuth token exchange is never CORS-blocked.
+    if (url.pathname.startsWith('/oauth/token')) {
+      const upstream = new Request(
+        `https://login.intigriti.com/connect/token${url.search}`,
+        { method: request.method, headers: request.headers, body: request.body }
+      )
+      return fetch(upstream)
+    }
+
     // Proxy /oauth/login/* → https://login.intigriti.com/connect/authorize/*
     // /oauth/callback is intentionally excluded — falls through to the SPA.
     if (url.pathname.startsWith('/oauth/login')) {
