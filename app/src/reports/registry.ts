@@ -8,6 +8,8 @@ import { weeklyTriageSummarySpec } from './weeklyTriageSummary/spec'
 import { bountyBudgetOverviewSpec } from './bountyBudgetOverview/spec'
 import { submissionStatusSnapshotSpec } from './submissionStatusSnapshot/spec'
 import { rawApiExplorerSpec } from './rawApiExplorer/spec'
+import { hackeroneReportsOverviewSpec } from './hackeroneReportsOverview/spec'
+import { hackeroneActivitySpec } from './hackeroneActivity/spec'
 
 const BUILT_IN_SPECS: UserModuleSpec[] = [
   dailyTriageMovementSpec,
@@ -15,6 +17,8 @@ const BUILT_IN_SPECS: UserModuleSpec[] = [
   bountyBudgetOverviewSpec,
   submissionStatusSnapshotSpec,
   rawApiExplorerSpec,
+  hackeroneReportsOverviewSpec,
+  hackeroneActivitySpec,
 ]
 
 function buildModules(ctx: AppContext): ReportModule[] {
