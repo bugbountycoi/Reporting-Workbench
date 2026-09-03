@@ -11,6 +11,7 @@ export const submissionStatusSnapshotSpec: UserModuleSpec = {
   category: 'snapshot',
   author: 'Reporting Workbench',
   version: '1.0.0',
+  platform: 'intigriti',
 
   dataSource: 'submissions',
   params: { includePrograms: true, includeDateRange: false, includeInterval: false },

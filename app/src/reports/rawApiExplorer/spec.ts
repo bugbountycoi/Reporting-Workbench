@@ -22,6 +22,7 @@ export const rawApiExplorerSpec: UserModuleSpec = {
   category: 'developer',
   author: 'Reporting Workbench',
   version: '1.0.0',
+  platform: 'intigriti',
 
   dataSource: 'programs',
   params: { includePrograms: false, includeDateRange: false, includeInterval: false },

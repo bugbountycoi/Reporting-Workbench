@@ -23,6 +23,7 @@ export const bountyBudgetOverviewSpec: UserModuleSpec = {
   category: 'bounty',
   author: 'Reporting Workbench',
   version: '1.0.0',
+  platform: 'intigriti',
 
   dataSource: 'payouts',
   params: { includePrograms: true, includeDateRange: false, includeInterval: true },

@@ -11,6 +11,7 @@ export const dailyTriageMovementSpec: UserModuleSpec = {
   category: 'triage',
   author: 'Reporting Workbench',
   version: '1.0.0',
+  platform: 'intigriti',
 
   dataSource: 'submissions',
   params: { includePrograms: true, includeDateRange: true, includeInterval: true },
