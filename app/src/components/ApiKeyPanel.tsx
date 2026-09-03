@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { setToken, clearToken, enableLocalStorage, disableLocalStorage } from '../auth/store'
+import { setToken, setTokenB, clearToken, enableLocalStorage, disableLocalStorage } from '../auth/store'
 import { buildAuthUrl, exchangeCode, exchangeCodeWithSecret, generatePKCE, scheduleRefresh, cancelRefreshSchedule, registerOAuthCallbackHandler } from '../auth/oauth'
 import { getPrograms } from '../api/endpoints/programs'
 import { getMockMode, setMockMode, getCacheMode, setCacheMode, getActiveApiVersion, setActiveApiVersion, API_CONFIG } from '../config/api'
@@ -8,6 +8,9 @@ import { requestCacheFolder, readFromCache, loadCacheIndex } from '../cache/mana
 import { cacheConfig } from '../cache/cacheConfig'
 import { formatDistanceToNow } from 'date-fns'
 import type { ProgramOverviewViewModel } from '../api/types'
+import type { PlatformId } from '../platforms/types'
+import { PLATFORMS } from '../platforms/registry'
+import { getActivePlatform, setActivePlatform } from '../platforms/store'
 
 type SourceMode = 'mock' | 'cache' | 'live'
 type LiveStep = 'token' | 'oauth'
@@ -63,8 +66,18 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
   const [liveStep, setLiveStep] = useState<LiveStep>(() =>
     sessionStorage.getItem('wb_oauth_pending_state') ? 'oauth' : 'token'
   )
+  const [selectedPlatform, setSelectedPlatformState] = useState<PlatformId>(getActivePlatform)
   const [bearerInput, setBearerInput] = useState('')
+  const [identifierInput, setIdentifierInput] = useState('') // H1 identifier or BC username
   const [clientId, setClientId] = useState('')
+
+  function handlePlatformChange(p: PlatformId) {
+    setSelectedPlatformState(p)
+    setActivePlatform(p)
+    setBearerInput('')
+    setIdentifierInput('')
+    setError(null)
+  }
   const [oauthState] = useState(() => sessionStorage.getItem('wb_oauth_pending_state') ?? '')
   const [pendingClientId] = useState(() => sessionStorage.getItem('wb_oauth_pending_client_id') ?? '')
   const [pendingCodeVerifier] = useState(() => sessionStorage.getItem('wb_oauth_pending_code_verifier') ?? '')
@@ -168,14 +181,19 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
   const handleValidateToken = async () => {
     const token = bearerInput.trim()
     if (!token) return
+    const platformCfg = PLATFORMS[selectedPlatform]
+    if ((platformCfg.authScheme === 'basic' || platformCfg.authScheme === 'token-pair') && !identifierInput.trim()) return
     setTesting(true)
     setError(null)
     try {
+      setActivePlatform(selectedPlatform)
       setToken(token)
+      if (platformCfg.authScheme !== 'bearer') setTokenB(identifierInput.trim())
       await getPrograms()
       setBearerInput('')
+      setIdentifierInput('')
       await onConnected()
-      startVersionProbe()
+      if (selectedPlatform === 'intigriti') startVersionProbe()
     } catch (e) {
       clearToken()
       setError(`Token validation failed: ${String(e)}`)
@@ -394,61 +412,107 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
 
       {!isConnected && sourceMode === 'live' && (
         <div className="space-y-3">
+          {/* Platform picker */}
+          <div>
+            <p className="text-xs font-semibold text-gray-700 mb-1.5 uppercase tracking-wide">Platform</p>
+            <div className="flex gap-2 flex-wrap">
+              {(Object.keys(PLATFORMS) as PlatformId[]).map((p) => {
+                const cfg = PLATFORMS[p]
+                const active = selectedPlatform === p
+                return (
+                  <button
+                    key={p}
+                    onClick={() => handlePlatformChange(p)}
+                    className="px-3 py-1.5 rounded-lg text-sm font-semibold border transition-colors"
+                    style={active
+                      ? { background: cfg.badgeColor, color: 'white', borderColor: cfg.badgeColor }
+                      : { background: 'white', color: cfg.badgeColor, borderColor: cfg.badgeColor }}
+                  >
+                    {cfg.name}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
           <p className="text-xs text-brand-gray-mid">
-            An API token from your Intigriti admin panel is required to access your live data.{' '}
-            <a
-              href="https://kb.intigriti.com/en/articles/6117846-intigriti-api"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-brand-blue hover:underline"
-            >
-              How to get an API key →
-            </a>
+            {selectedPlatform === 'intigriti' && <>An API token from your Intigriti admin panel is required. <a href="https://kb.intigriti.com/en/articles/6117846-intigriti-api" target="_blank" rel="noopener noreferrer" className="text-brand-blue hover:underline">How to get an API key →</a></>}
+            {selectedPlatform === 'hackerone' && <>HackerOne uses HTTP Basic auth. Your identifier (username or email) and API token are required. <a href="https://api.hackerone.com" target="_blank" rel="noopener noreferrer" className="text-brand-blue hover:underline">HackerOne API docs →</a></>}
+            {selectedPlatform === 'bugcrowd' && <>Bugcrowd uses token-pair auth. Your username and API token are required. <a href="https://docs.bugcrowd.com/api/getting-started/" target="_blank" rel="noopener noreferrer" className="text-brand-blue hover:underline">Bugcrowd API docs →</a></>}
           </p>
 
           {liveStep === 'token' && (
             <>
+              {/* Two-part auth: identifier field for HackerOne / Bugcrowd */}
+              {PLATFORMS[selectedPlatform].authScheme !== 'bearer' && (
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">
+                    {selectedPlatform === 'hackerone' ? 'Identifier (username or email)' : 'Username'}{' '}
+                    <span className="text-brand-red">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder={selectedPlatform === 'hackerone' ? 'your-handle or email@example.com' : 'your-bugcrowd-username'}
+                    value={identifierInput}
+                    onChange={(e) => setIdentifierInput(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue"
+                    autoComplete="off"
+                  />
+                </div>
+              )}
+
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  Bearer Token <span className="text-brand-red">*</span>
+                  {selectedPlatform === 'intigriti' ? 'Bearer Token' : 'API Token'}{' '}
+                  <span className="text-brand-red">*</span>
                 </label>
                 <input
                   type="password"
-                  placeholder="Paste your token from Admin › Integrations › Intigriti API"
+                  placeholder={
+                    selectedPlatform === 'intigriti'
+                      ? 'Paste your token from Admin › Integrations › Intigriti API'
+                      : selectedPlatform === 'hackerone'
+                      ? 'Your HackerOne API token'
+                      : 'Your Bugcrowd API token'
+                  }
                   value={bearerInput}
                   onChange={(e) => setBearerInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleValidateToken()}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue"
                   autoComplete="off"
-                  autoFocus
+                  autoFocus={PLATFORMS[selectedPlatform].authScheme === 'bearer'}
                 />
-                <p className="mt-1.5 text-xs text-brand-gray-mid leading-snug">
-                  Get a token from{' '}
-                  <a
-                    href="https://api.intigriti.com/external/company/swagger/index.html?urls.primaryName=V2.0"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-brand-blue underline hover:text-brand-blue-dark"
-                  >
-                    Intigriti Swagger UI
-                  </a>
-                  {' '}(click Authorize → paste your Client ID &amp; Secret → copy the access_token from the response) or from Admin › Integrations › Intigriti API.
-                </p>
+                {selectedPlatform === 'intigriti' && (
+                  <p className="mt-1.5 text-xs text-brand-gray-mid leading-snug">
+                    Get a token from{' '}
+                    <a
+                      href="https://api.intigriti.com/external/company/swagger/index.html?urls.primaryName=V2.0"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-brand-blue underline hover:text-brand-blue-dark"
+                    >
+                      Intigriti Swagger UI
+                    </a>
+                    {' '}(click Authorize → paste your Client ID &amp; Secret → copy the access_token) or from Admin › Integrations › Intigriti API.
+                  </p>
+                )}
               </div>
               <div className="flex items-center gap-3">
                 <button
                   onClick={handleValidateToken}
-                  disabled={testing || !bearerInput.trim()}
+                  disabled={testing || !bearerInput.trim() || (PLATFORMS[selectedPlatform].authScheme !== 'bearer' && !identifierInput.trim())}
                   className="px-4 py-2 bg-brand-navy text-white rounded-lg text-sm font-semibold hover:bg-brand-navy-light disabled:opacity-50 transition-colors"
                 >
                   {testing ? 'Validating…' : 'Validate & Connect'}
                 </button>
-                <button
-                  onClick={() => setLiveStep('oauth')}
-                  className="text-xs text-brand-gray-mid hover:text-brand-blue transition-colors"
-                >
-                  Use OAuth 2.0 instead →
-                </button>
+                {selectedPlatform === 'intigriti' && (
+                  <button
+                    onClick={() => setLiveStep('oauth')}
+                    className="text-xs text-brand-gray-mid hover:text-brand-blue transition-colors"
+                  >
+                    Use OAuth 2.0 instead →
+                  </button>
+                )}
               </div>
 
               <div className="pt-1">
