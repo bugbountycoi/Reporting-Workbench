@@ -166,10 +166,25 @@ export default defineConfig({
     port: 1337,
     strictPort: true,
     proxy: {
-      '/api': {
+      // Intigriti — proxies /intigriti-api/* → https://api.intigriti.com/external/company/*
+      '/intigriti-api': {
         target: 'https://api.intigriti.com/external/company',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ''),
+        rewrite: (path) => path.replace(/^\/intigriti-api/, ''),
+        secure: true,
+      },
+      // HackerOne — proxies /h1-api/* → https://api.hackerone.com/v1/*
+      '/h1-api': {
+        target: 'https://api.hackerone.com/v1',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/h1-api/, ''),
+        secure: true,
+      },
+      // Bugcrowd — proxies /bc-api/* → https://api.bugcrowd.com/*
+      '/bc-api': {
+        target: 'https://api.bugcrowd.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/bc-api/, ''),
         secure: true,
       },
       // OAuth token exchange — same-origin proxy avoids CORS on connect/token.

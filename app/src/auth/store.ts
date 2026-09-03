@@ -1,9 +1,26 @@
-export const TOKEN_STORAGE_KEY = 'wb_token'
+// Token storage key is platform-namespaced to prevent credential mix-up.
+// Legacy flat key 'wb_token' (Intigriti) migrates to 'intigriti_wb_token' on first load.
+function getTokenStorageKey(): string {
+  try {
+    const p = localStorage.getItem('wb_active_platform') ?? 'intigriti'
+    return `${p}_wb_token`
+  } catch {
+    return 'intigriti_wb_token'
+  }
+}
+
+// Kept for backward compatibility export — resolves to the platform-namespaced key.
+export const TOKEN_STORAGE_KEY = 'intigriti_wb_token'
+
 // AES-GCM key lives in sessionStorage: cleared when the tab closes so
 // stored ciphertext is automatically undecryptable in a new browser session.
 const SESSION_EK = 'wb_ek'
 
 let _token: string | null = null
+// Secondary credential used by platforms that require two-part auth:
+// HackerOne: tokenB = identifier, tokenA = API token
+// Bugcrowd:  tokenB = username,   tokenA = API token
+let _tokenB: string | null = null
 let _refreshToken: string | null = null
 let _expiresAt: number | null = null
 let _useLocalStorage = false
@@ -37,6 +54,7 @@ async function getOrCreateKey(): Promise<CryptoKey> {
 
 async function encryptToStorage(token: string, expiresAt: number | null): Promise<void> {
   try {
+    const storageKey = getTokenStorageKey()
     const key = await getOrCreateKey()
     const iv = crypto.getRandomValues(new Uint8Array(12))
     const ct = await crypto.subtle.encrypt(
@@ -47,7 +65,9 @@ async function encryptToStorage(token: string, expiresAt: number | null): Promis
     const blob = new Uint8Array(12 + ct.byteLength)
     blob.set(iv)
     blob.set(new Uint8Array(ct), 12)
-    localStorage.setItem(TOKEN_STORAGE_KEY, toB64(blob))
+    localStorage.setItem(storageKey, toB64(blob))
+    // Migrate legacy flat key if present
+    if (storageKey !== 'wb_token') localStorage.removeItem('wb_token')
   } catch {
     // Silent — token is still in memory
   }
@@ -57,7 +77,9 @@ async function decryptFromStorage(): Promise<{ token: string; expiresAt: number 
   try {
     const ekRaw = sessionStorage.getItem(SESSION_EK)
     if (!ekRaw) return null
-    const raw = localStorage.getItem(TOKEN_STORAGE_KEY)
+    const storageKey = getTokenStorageKey()
+    // Also check legacy flat key for migration
+    const raw = localStorage.getItem(storageKey) ?? localStorage.getItem('wb_token')
     if (!raw) return null
     const blob = fromB64(raw)
     const key = await crypto.subtle.importKey('raw', fromB64(ekRaw), 'AES-GCM', false, ['decrypt'])
@@ -82,8 +104,18 @@ export function setToken(token: string, expiresIn?: number, refreshToken?: strin
   }
 }
 
+/** Set the secondary credential (identifier for HackerOne, username for Bugcrowd). */
+export function setTokenB(tokenB: string | null): void {
+  _tokenB = tokenB
+}
+
 export function getToken(): string | null {
   return _token
+}
+
+/** Returns the secondary credential used by platforms that require two-part auth. */
+export function getTokenB(): string | null {
+  return _tokenB
 }
 
 export function getRefreshToken(): string | null {
@@ -101,10 +133,12 @@ export function isTokenExpired(): boolean {
 
 export function clearToken(): void {
   _token = null
+  _tokenB = null
   _refreshToken = null
   _expiresAt = null
   if (_useLocalStorage) {
-    localStorage.removeItem(TOKEN_STORAGE_KEY)
+    localStorage.removeItem(getTokenStorageKey())
+    localStorage.removeItem('wb_token') // legacy key
     sessionStorage.removeItem(SESSION_EK)
   }
 }
@@ -129,7 +163,8 @@ export async function enableLocalStorage(): Promise<void> {
 
 export function disableLocalStorage(): void {
   _useLocalStorage = false
-  localStorage.removeItem(TOKEN_STORAGE_KEY)
+  localStorage.removeItem(getTokenStorageKey())
+  localStorage.removeItem('wb_token') // legacy key
   sessionStorage.removeItem(SESSION_EK)
 }
 

@@ -47,18 +47,30 @@ export function setActiveApiVersion(v: string): void {
   localStorage.setItem(VERSION_STORAGE_KEY, v)
 }
 
-/** Returns the base URL for the currently active API version. Read by api/client.ts. */
-export function getApiBaseUrl(): string { return `/api/${_activeVersion}` }
+/** Returns the base URL for the currently active platform + API version. Read by api/client.ts. */
+export function getApiBaseUrl(): string {
+  // Read active platform from localStorage directly to avoid circular imports.
+  // platforms/store.ts uses the same key 'wb_active_platform'.
+  let platform = 'intigriti'
+  try {
+    const stored = localStorage.getItem('wb_active_platform')
+    if (stored === 'hackerone' || stored === 'bugcrowd' || stored === 'intigriti') {
+      platform = stored
+    }
+  } catch { /* localStorage unavailable */ }
+
+  if (platform === 'hackerone') return '/h1-api'
+  if (platform === 'bugcrowd') return '/bc-api'
+  return `/intigriti-api/${_activeVersion}`
+}
 
 // ---------------------------------------------------------------------------
 
 export const API_CONFIG = {
-  // Vite dev proxy rewrites /api/* → https://api.intigriti.com/external/company/*
-  baseUrl: '/api/v2',
+  // Vite dev proxy rewrites /intigriti-api/* → https://api.intigriti.com/external/company/*
+  baseUrl: '/intigriti-api/v2',
   authBaseUrl: 'https://login.intigriti.com',
   oauthAuthorizeUrl: 'https://login.intigriti.com/connect/authorize',
-  // Relative → routed through the same-origin token proxy (Vite dev / server.mjs /
-  // Cloudflare worker) so the browser is never CORS-blocked reaching connect/token.
   oauthTokenUrl: '/oauth/token',
   oauthRedirectUri: `${window.location.origin}/oauth/callback`,
   defaultScopes: 'company_external_api core_platform:read offline_access',

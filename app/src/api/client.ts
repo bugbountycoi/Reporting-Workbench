@@ -1,5 +1,7 @@
 import { getApiBaseUrl } from '../config/api'
-import { getToken } from '../auth/store'
+import { getToken, getTokenB } from '../auth/store'
+import { getActivePlatform } from '../platforms/store'
+import { getPlatformConfig } from '../platforms/registry'
 import { safeLog } from '../utils/redaction'
 import { ApiError, type ApiErrorModel } from './types'
 
@@ -15,17 +17,36 @@ export async function apiFetch<T>(
   options: RequestInit = {},
   retries = 0,
 ): Promise<T> {
-  const token = getToken()
+  const platform = getActivePlatform()
+  const config = getPlatformConfig(platform)
+  const tokenA = getToken()
+  const tokenB = getTokenB()
   const url = `${getApiBaseUrl()}${path}`
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    Accept: 'application/json',
+    Accept: config.acceptHeader ?? 'application/json',
     ...(options.headers as Record<string, string>),
   }
 
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`
+  if (tokenA) {
+    switch (config.authScheme) {
+      case 'bearer':
+        headers['Authorization'] = `Bearer ${tokenA}`
+        break
+      case 'basic': {
+        // HackerOne: Basic base64(identifier:token)
+        const identifier = tokenB ?? ''
+        headers['Authorization'] = `Basic ${btoa(`${identifier}:${tokenA}`)}`
+        break
+      }
+      case 'token-pair': {
+        // Bugcrowd: Token username:token
+        const username = tokenB ?? ''
+        headers['Authorization'] = `Token ${username}:${tokenA}`
+        break
+      }
+    }
   }
 
   safeLog('log', `[API] ${options.method ?? 'GET'} ${path}`)

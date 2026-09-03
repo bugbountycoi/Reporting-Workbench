@@ -238,11 +238,31 @@ export default {
       return handleContribute(request, env)
     }
 
-    // Proxy /api/* → https://api.intigriti.com/external/company/*
-    if (url.pathname.startsWith('/api')) {
-      const targetPath = url.pathname.slice(4) || '/'
+    // Proxy /intigriti-api/* → https://api.intigriti.com/external/company/*
+    if (url.pathname.startsWith('/intigriti-api')) {
+      const targetPath = url.pathname.slice('/intigriti-api'.length) || '/'
       const upstream = new Request(
         `https://api.intigriti.com/external/company${targetPath}${url.search}`,
+        { method: request.method, headers: request.headers, body: request.body }
+      )
+      return fetch(upstream)
+    }
+
+    // Proxy /h1-api/* → https://api.hackerone.com/v1/*
+    if (url.pathname.startsWith('/h1-api')) {
+      const targetPath = url.pathname.slice('/h1-api'.length) || '/'
+      const upstream = new Request(
+        `https://api.hackerone.com/v1${targetPath}${url.search}`,
+        { method: request.method, headers: request.headers, body: request.body }
+      )
+      return fetch(upstream)
+    }
+
+    // Proxy /bc-api/* → https://api.bugcrowd.com/*
+    if (url.pathname.startsWith('/bc-api')) {
+      const targetPath = url.pathname.slice('/bc-api'.length) || '/'
+      const upstream = new Request(
+        `https://api.bugcrowd.com${targetPath}${url.search}`,
         { method: request.method, headers: request.headers, body: request.body }
       )
       return fetch(upstream)
