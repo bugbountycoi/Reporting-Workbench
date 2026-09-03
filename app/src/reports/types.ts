@@ -1,5 +1,6 @@
 import type { ColumnDef } from '@tanstack/react-table'
 import type { ProgramOverviewViewModel } from '../api/types'
+import type { PlatformId } from '../platforms/types'
 
 export interface SummaryCard {
   label: string
@@ -62,6 +63,7 @@ export interface ReportModule {
   author?: string
   version?: string
   isBuiltIn?: boolean
+  platform?: PlatformId | PlatformId[]
   requiredScopes: string[]
   isAvailable: (ctx: AppContext) => boolean
   paramFields: ParamField[]

@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { ReportModule, ReportData } from '../reports/types'
+import type { PlatformId } from '../platforms/types'
+import { PLATFORMS } from '../platforms/registry'
 
 const CATEGORY_LABELS: Record<string, string> = {
   triage:    'Triage',
@@ -54,6 +56,11 @@ interface Props {
   onContribute: (id: string) => void
 }
 
+function modulePlatforms(report: ReportModule): PlatformId[] {
+  if (!report.platform) return []
+  return Array.isArray(report.platform) ? report.platform : [report.platform]
+}
+
 export function ReportSelector({
   reports,
   selectedId,
@@ -67,6 +74,17 @@ export function ReportSelector({
   onDelete,
   onContribute,
 }: Props) {
+  const availablePlatforms = useMemo<PlatformId[]>(() => {
+    const present = new Set<PlatformId>()
+    for (const r of reports) {
+      for (const p of modulePlatforms(r)) present.add(p)
+    }
+    const order: PlatformId[] = ['intigriti', 'hackerone', 'bugcrowd']
+    return order.filter((p) => present.has(p))
+  }, [reports])
+
+  const [activePlatform, setActivePlatform] = useState<PlatformId | 'all'>('all')
+
   const availableCategories = useMemo(() => {
     const order = Object.keys(CATEGORY_LABELS)
     const present = new Set<string>(reports.map((r) => r.category))
@@ -91,13 +109,44 @@ export function ReportSelector({
     })
   }
 
-  const visibleReports = useMemo(
-    () => reports.filter((r) => activeCategories.has(r.category)),
-    [reports, activeCategories]
-  )
+  const visibleReports = useMemo(() => {
+    return reports.filter((r) => {
+      if (!activeCategories.has(r.category)) return false
+      if (activePlatform === 'all') return true
+      const platforms = modulePlatforms(r)
+      return platforms.length === 0 || platforms.includes(activePlatform)
+    })
+  }, [reports, activeCategories, activePlatform])
 
   return (
     <div>
+      {/* Platform filter chips — only shown when multiple platforms present */}
+      {availablePlatforms.length > 1 && (
+        <div className="flex flex-wrap items-center gap-1.5 mb-2">
+          <button
+            onClick={() => setActivePlatform('all')}
+            className="text-xs rounded-full px-2.5 py-1 font-semibold transition-all select-none border"
+            style={activePlatform === 'all'
+              ? { background: 'var(--brand-navy)', color: 'white', borderColor: 'var(--brand-navy)' }
+              : { background: 'white', color: 'var(--brand-gray-mid)', borderColor: 'rgb(229 231 235)' }}
+          >
+            All platforms
+          </button>
+          {availablePlatforms.map((p) => (
+            <button
+              key={p}
+              onClick={() => setActivePlatform(p)}
+              className="text-xs rounded-full px-2.5 py-1 font-semibold transition-all select-none border"
+              style={activePlatform === p
+                ? { background: PLATFORMS[p].badgeColor, color: 'white', borderColor: PLATFORMS[p].badgeColor }
+                : { background: 'white', color: PLATFORMS[p].badgeColor, borderColor: PLATFORMS[p].badgeColor }}
+            >
+              {PLATFORMS[p].name}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Category filter chips */}
       {availableCategories.length > 1 && (
         <div className="flex flex-wrap items-center gap-1.5 mb-3">
@@ -140,12 +189,24 @@ export function ReportSelector({
             >
               <div className="flex items-start justify-between gap-2 mb-1.5">
                 <span className="font-heading font-medium text-gray-900 text-sm leading-snug">{report.title}</span>
-                <span
-                  className="text-xs rounded-full px-2 py-0.5 font-semibold shrink-0"
-                  style={getBadgeStyle(report.category)}
-                >
-                  {CATEGORY_LABELS[report.category]}
-                </span>
+                <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
+                  {modulePlatforms(report).map((p) => (
+                    <span
+                      key={p}
+                      className="text-xs rounded-full px-1.5 py-0.5 font-semibold"
+                      style={{ background: `${PLATFORMS[p].badgeColor}22`, color: PLATFORMS[p].badgeColor }}
+                      title={PLATFORMS[p].name}
+                    >
+                      {PLATFORMS[p].name}
+                    </span>
+                  ))}
+                  <span
+                    className="text-xs rounded-full px-2 py-0.5 font-semibold"
+                    style={getBadgeStyle(report.category)}
+                  >
+                    {CATEGORY_LABELS[report.category]}
+                  </span>
+                </div>
               </div>
 
               {(report.author || report.version) && (

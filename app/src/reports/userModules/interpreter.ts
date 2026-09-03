@@ -212,6 +212,7 @@ export function specToModule(spec: UserModuleSpec, programs: ProgramOverviewView
     author: spec.author,
     version: spec.version,
     isBuiltIn: false,
+    platform: spec.platform,
     requiredScopes: requiredScopes(spec),
     isAvailable: () => true,
     paramFields,
