@@ -119,7 +119,7 @@ export default function App() {
         const restored: Record<string, ReportParams> = {}
         for (const [reportId, savedParams] of Object.entries(saved.moduleParams)) {
           const { programIndices, ...rest } = savedParams
-          const resolvedIds = (programIndices as number[])
+          const resolvedIds = (Array.isArray(programIndices) ? programIndices : [])
             .map((idx: number) => progs[idx - 1]?.id)
             .filter((id): id is string => Boolean(id))
           restored[reportId] = { ...rest, programIds: resolvedIds }
