@@ -16,7 +16,26 @@ function toSlug(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60)
 }
 
+// Returns the bare username if the string looks like a valid GitHub username
+// (with or without a leading @). Returns null for free-form names.
+function parseGitHubUsername(raw: string): string | null {
+  const stripped = raw.startsWith('@') ? raw.slice(1) : raw
+  // GitHub: 1-39 chars, alphanumeric + hyphens, no leading/trailing hyphen, no consecutive hyphens
+  if (
+    stripped.length >= 1 &&
+    stripped.length <= 39 &&
+    /^[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9]$/.test(stripped) &&
+    !stripped.includes('--')
+  ) {
+    return stripped
+  }
+  // Single alphanumeric char also valid
+  if (/^[a-zA-Z0-9]$/.test(stripped)) return stripped
+  return null
+}
+
 export function ContributeModal({ type, name, payload, onClose }: Props) {
+  const [author, setAuthor] = useState('')
   const [authorNote, setAuthorNote] = useState('')
   const [submitState, setSubmitState] = useState<SubmitState>('idle')
   const [prUrl, setPrUrl] = useState('')
@@ -26,6 +45,10 @@ export function ContributeModal({ type, name, payload, onClose }: Props) {
   const label = type === 'module' ? 'Report Module' : 'Theme'
   const slug = toSlug(name)
 
+  const authorTrimmed = author.trim()
+  const githubUsername = authorTrimmed ? parseGitHubUsername(authorTrimmed) : null
+  const isFreeFormName = authorTrimmed && !githubUsername
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSubmitState('submitting')
@@ -34,7 +57,14 @@ export function ContributeModal({ type, name, payload, onClose }: Props) {
       const res = await fetch('/contribute', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type, name, slug, authorNote: authorNote.trim(), payload }),
+        body: JSON.stringify({
+          type,
+          name,
+          slug,
+          author: authorTrimmed || undefined,
+          authorNote: authorNote.trim() || undefined,
+          payload,
+        }),
       })
       const data = await res.json() as { prUrl?: string; prNumber?: number; error?: string }
       if (!res.ok) throw new Error(data.error ?? `Server error ${res.status}`)
@@ -60,9 +90,7 @@ export function ContributeModal({ type, name, payload, onClose }: Props) {
         {submitState === 'success' ? (
           <div className="px-6 py-8 text-center space-y-4">
             <div className="text-4xl">🎉</div>
-            <p className="font-medium text-gray-900">
-              PR #{prNumber} opened!
-            </p>
+            <p className="font-medium text-gray-900">PR #{prNumber} opened!</p>
             <p className="text-sm text-gray-500 leading-relaxed">
               Your {label.toLowerCase()} has been submitted for review. A maintainer will look it over before merging.
             </p>
@@ -98,6 +126,40 @@ export function ContributeModal({ type, name, payload, onClose }: Props) {
               <p className="text-xs text-gray-400 mt-0.5">
                 Will be saved as <code className="bg-gray-100 px-1 rounded">community/{type}s/{slug}.json</code>
               </p>
+            </div>
+
+            <div>
+              <label htmlFor="author" className="block text-xs font-semibold text-gray-600 mb-1">
+                Author credit <span className="font-normal text-gray-400">(optional)</span>
+              </label>
+              <input
+                id="author"
+                type="text"
+                value={author}
+                onChange={(e) => setAuthor(e.target.value.slice(0, 100))}
+                placeholder="@github-username or Your Name"
+                className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-blue"
+              />
+              {/* Live preview */}
+              {githubUsername && (
+                <p className="mt-1 text-xs text-gray-500">
+                  Will be credited as{' '}
+                  <a
+                    href={`https://github.com/${githubUsername}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-brand-blue hover:underline font-medium"
+                  >
+                    @{githubUsername}
+                  </a>
+                  {' '}on GitHub
+                </p>
+              )}
+              {isFreeFormName && (
+                <p className="mt-1 text-xs text-gray-500">
+                  Will be credited as <span className="font-medium text-gray-700">{authorTrimmed}</span>
+                </p>
+              )}
             </div>
 
             <div>

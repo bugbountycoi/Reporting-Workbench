@@ -34,12 +34,13 @@ function contributePlugin(): Plugin {
 
         let raw = ''
         for await (const chunk of req) raw += chunk
-        let body: { type?: string; name?: string; slug?: string; authorNote?: string; payload?: Record<string, unknown> }
+        let body: { type?: string; name?: string; slug?: string; author?: string; authorNote?: string; payload?: Record<string, unknown> }
         try { body = JSON.parse(raw) } catch { res.writeHead(400).end('Invalid JSON'); return }
 
         const type = body?.type === 'theme' ? 'theme' : 'module'
         const name = String(body?.name ?? '').trim()
         const slug = String(body?.slug ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60)
+        const author = String(body?.author ?? '').trim().slice(0, 100)
         const authorNote = String(body?.authorNote ?? '').trim().slice(0, 2000)
         const payload = body?.payload
 
@@ -75,8 +76,16 @@ function contributePlugin(): Plugin {
         if (!fileRes.ok) { res.writeHead(502, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Failed to create file' })); return }
 
         // 4. Create PR
+        function parseGHUsername(raw: string): string | null {
+          const s = raw.startsWith('@') ? raw.slice(1) : raw
+          if (s.length >= 1 && s.length <= 39 && /^[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9]?$/.test(s) && !s.includes('--')) return s
+          return null
+        }
+        const authorLine = author
+          ? (() => { const u = parseGHUsername(author); return u ? `\n\n**Author:** [@${u}](https://github.com/${u})` : `\n\n**Author:** ${author}` })()
+          : ''
         const note = authorNote ? `\n\n### Notes from the contributor\n\n${authorNote}` : ''
-        const prBody = `## Community ${type === 'module' ? 'Report Module' : 'Theme'}: ${name}\n\nThis PR was submitted via the in-app contribution feature.${note}\n\n---\n*Submitted via Reporting Workbench CE*`
+        const prBody = `## Community ${type === 'module' ? 'Report Module' : 'Theme'}: ${name}\n\nThis PR was submitted via the in-app contribution feature.${authorLine}${note}\n\n---\n*Submitted via Reporting Workbench CE*`
         const prRes = await fetch(`${GITHUB_API}/repos/${GITHUB_REPO}/pulls`, {
           method: 'POST', headers,
           body: JSON.stringify({ title: `Community: Add ${type} "${name}"`, body: prBody, head: branch, base: 'main' }),

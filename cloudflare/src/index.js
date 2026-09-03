@@ -11,13 +11,26 @@ function ghHeaders(token) {
   }
 }
 
-function buildContributePrBody(type, name, authorNote) {
+// Returns the bare GitHub username if raw looks like one (with or without @).
+function parseGitHubUsername(raw) {
+  const s = raw.startsWith('@') ? raw.slice(1) : raw
+  if (s.length >= 1 && s.length <= 39 && /^[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9]?$/.test(s) && !s.includes('--'))
+    return s
+  return null
+}
+
+function buildContributePrBody(type, name, author, authorNote) {
   const label = type === 'module' ? 'Report Module' : 'Theme'
   const lines = [
     `## Community ${label}: ${name}`,
     '',
     'This PR was submitted via the in-app contribution feature.',
   ]
+  if (author) {
+    const username = parseGitHubUsername(author)
+    const credit = username ? `[@${username}](https://github.com/${username})` : author
+    lines.push('', `**Author:** ${credit}`)
+  }
   if (authorNote) lines.push('', '### Notes from the contributor', '', authorNote)
   lines.push('', '---', '*Submitted via Reporting Workbench CE*')
   return lines.join('\n')
@@ -47,6 +60,7 @@ async function handleContribute(request, env) {
   const name = String(body?.name ?? '').trim()
   const slug = String(body?.slug ?? '')
     .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60)
+  const author = String(body?.author ?? '').trim().slice(0, 100)
   const authorNote = String(body?.authorNote ?? '').trim().slice(0, 2000)
   const payload = body?.payload
 
@@ -121,7 +135,7 @@ async function handleContribute(request, env) {
     method: 'POST', headers,
     body: JSON.stringify({
       title: `Community: Add ${type} "${name}"`,
-      body: buildContributePrBody(type, name, authorNote),
+      body: buildContributePrBody(type, name, author, authorNote),
       head: branch,
       base: 'main',
     }),
