@@ -1,1 +1,1 @@
-fixtures/submissions.sample.json
+# No exclusions needed — submissions fixture is now split into parts ≤ 11 MB each.
