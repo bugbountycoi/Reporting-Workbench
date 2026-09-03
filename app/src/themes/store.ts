@@ -6,7 +6,7 @@ import { communityTheme } from './builtins/community'
 const ACTIVE_KEY = 'wb_active_theme'
 const USER_THEMES_KEY = 'wb_user_themes'
 
-export const BUILTIN_THEMES: ThemeSpec[] = [intigritiTheme, communityTheme]
+export const BUILTIN_THEMES: ThemeSpec[] = [communityTheme, intigritiTheme]
 export const BUILTIN_IDS = new Set(BUILTIN_THEMES.map((t) => t.id))
 
 export function loadUserThemes(): ThemeSpec[] {
@@ -37,7 +37,7 @@ export function getAllThemes(): ThemeSpec[] {
 }
 
 export function getActiveThemeId(): string {
-  return localStorage.getItem(ACTIVE_KEY) ?? 'intigriti'
+  return localStorage.getItem(ACTIVE_KEY) ?? 'community'
 }
 
 export function setActiveThemeId(id: string): void {
@@ -45,5 +45,5 @@ export function setActiveThemeId(id: string): void {
 }
 
 export function resolveTheme(id: string): ThemeSpec {
-  return getAllThemes().find((t) => t.id === id) ?? intigritiTheme
+  return getAllThemes().find((t) => t.id === id) ?? communityTheme
 }
