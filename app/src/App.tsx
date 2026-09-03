@@ -25,6 +25,8 @@ import { getMockMode, getCacheMode } from './config/api'
 import { invokeOAuthCallback } from './auth/oauth'
 import { DisclaimerModal, isDisclaimerAccepted } from './components/DisclaimerModal'
 import { ThemeSwitcher } from './components/ThemeSwitcher'
+import { BugReportBanner } from './components/BugReportBanner'
+import { BugReportModal, type BugReportContext } from './components/BugReportModal'
 import { saveWorkbenchConfig, loadWorkbenchConfig, type SavedModuleParams, type SavedSettings } from './config/savedConfig'
 import { cacheConfig } from './cache/cacheConfig'
 
@@ -69,6 +71,15 @@ function InfoIcon({ className }: { className?: string }) {
   )
 }
 
+function BugIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-2.21 0-4 1.79-4 4v2c0 2.21 1.79 4 4 4s4-1.79 4-4v-2c0-2.21-1.79-4-4-4z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8 12H4m16 0h-4M8 10l-2-2m12 2l2-2M8 16l-2 2m12-2l2 2M10 8V6a2 2 0 014 0v2" />
+    </svg>
+  )
+}
+
 export default function App() {
   const [appState, setAppState] = useState<'setup' | 'connected'>('setup')
   const [disclaimerAccepted, setDisclaimerAccepted] = useState(isDisclaimerAccepted)
@@ -82,6 +93,7 @@ export default function App() {
   const [showSamplePreview, setShowSamplePreview] = useState(true)
 
   const [isMockMode, setIsMockMode] = useState(() => getMockMode())
+  const [bugReportOpen, setBugReportOpen] = useState(false)
 
   const [panelsOpen, setPanelsOpen] = useState({ api: true, cache: true, encryption: true })
   const [cacheConfigured, setCacheConfigured] = useState(false)
@@ -405,6 +417,15 @@ export default function App() {
       <ThemeSwitcher />
 
       <button
+        onClick={() => setBugReportOpen(true)}
+        title="Report a bug"
+        className="p-1.5 rounded-md hover:bg-white/10 transition-colors"
+        aria-label="Report a bug"
+      >
+        <BugIcon className="w-4 h-4 text-white/60 hover:text-white/90" />
+      </button>
+
+      <button
         onClick={() => setDisclaimerOpen(true)}
         title="View disclaimer"
         className="p-1.5 rounded-md hover:bg-white/10 transition-colors"
@@ -419,10 +440,23 @@ export default function App() {
     return <DisclaimerModal onAccept={() => setDisclaimerAccepted(true)} />
   }
 
+  const bugContext: BugReportContext = {
+    appVersion: typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'unknown',
+    mode: isMockMode ? 'mock' : getCacheMode() ? 'cache' : 'live',
+    connected: isConnected,
+    activeReport: selectedReport?.title ?? null,
+  }
+
   return (
-    <AppShell headerActions={headerActions}>
+    <AppShell
+      headerActions={headerActions}
+      banner={<BugReportBanner onReport={() => setBugReportOpen(true)} />}
+    >
       {disclaimerOpen && (
         <DisclaimerModal viewOnly onAccept={() => setDisclaimerOpen(false)} />
+      )}
+      {bugReportOpen && (
+        <BugReportModal context={bugContext} onClose={() => setBugReportOpen(false)} />
       )}
       {/* Config panels row */}
       {anyConfigPanelOpen && (

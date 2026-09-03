@@ -4,6 +4,7 @@ import { useTheme } from '../themes/ThemeProvider'
 interface Props {
   children: ReactNode
   headerActions?: ReactNode
+  banner?: ReactNode
 }
 
 function LogoImg({ logoSvg, name }: { logoSvg?: string; name: string }) {
@@ -19,7 +20,7 @@ function LogoImg({ logoSvg, name }: { logoSvg?: string; name: string }) {
   )
 }
 
-export function AppShell({ children, headerActions }: Props) {
+export function AppShell({ children, headerActions, banner }: Props) {
   const { activeTheme } = useTheme()
 
   return (
@@ -36,6 +37,8 @@ export function AppShell({ children, headerActions }: Props) {
           </div>
         </div>
       </header>
+
+      {banner}
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">{children}</main>
 
