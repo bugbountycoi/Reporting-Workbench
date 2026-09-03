@@ -119,7 +119,7 @@ export async function exchangeCodeWithSecret(
 // PKCE sessions send no client_secret on refresh (the refresh token is the credential).
 // Client-secret sessions include the secret stored in sessionStorage under
 // 'wb_oauth_client_secret' — it is session-scoped and cleared on disconnect.
-export async function refreshAccessToken(clientId: string): Promise<void> {
+export async function refreshAccessToken(clientId: string): Promise<number> {
   const rt = getRefreshToken()
   if (!rt) throw new Error('No refresh token available')
 
@@ -144,6 +144,7 @@ export async function refreshAccessToken(clientId: string): Promise<void> {
 
   const tokens = (await res.json()) as TokenResponse
   setToken(tokens.access_token, tokens.expires_in, tokens.refresh_token)
+  return tokens.expires_in
 }
 
 let _refreshTimer: ReturnType<typeof setTimeout> | null = null
@@ -156,8 +157,8 @@ export function scheduleRefresh(clientId: string, expiresIn: number): void {
   _refreshTimer = setTimeout(async () => {
     if (isTokenExpired()) {
       try {
-        await refreshAccessToken(_clientId)
-        scheduleRefresh(_clientId, 3600)
+        const expiresIn = await refreshAccessToken(_clientId)
+        scheduleRefresh(_clientId, expiresIn)
       } catch {
         safeLog('warn', '[OAuth] Auto-refresh failed. User may need to re-authenticate.')
       }
