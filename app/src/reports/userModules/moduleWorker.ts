@@ -49,6 +49,8 @@ type AllowedMethod =
   | 'getPrograms'
   | 'getSubmissions'
   | 'getPayouts'
+  | 'h1_getPrograms'
+  | 'h1_getReports'
 
 const pendingApiRequests = new Map<string, {
   resolve: (value: unknown) => void
@@ -74,6 +76,9 @@ const FETCH_CTX = {
   getPrograms: () => apiProxy('getPrograms', []),
   getSubmissions: (programId: string) => apiProxy('getSubmissions', [programId]),
   getPayouts: () => apiProxy('getPayouts', []),
+  // ── HackerOne raw (uncanonicalised) ────────────────────────────────────────
+  h1_getPrograms: () => apiProxy('h1_getPrograms', []),
+  h1_getReports: () => apiProxy('h1_getReports', []),
 }
 
 // ---------------------------------------------------------------------------

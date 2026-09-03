@@ -8,6 +8,7 @@ import { specChartConfig } from './types'
 import { declarativeTransform } from './transform'
 import { getPrograms, getProgramSubmissions, getProgramDetail } from '../../api/endpoints/programs'
 import { getAllPayouts } from '../../api/endpoints/payouts'
+import { h1GetPrograms, h1GetReports } from '../../api/endpoints/hackerone'
 import { adaptPrograms, adaptSubmissions, adaptPayouts } from '../../platforms/adapters'
 import { getActivePlatform } from '../../platforms/store'
 import { INTERVAL_OPTIONS } from '../../utils/intervals'
@@ -101,18 +102,36 @@ async function handleApiProxy(method: string, args: unknown[]): Promise<unknown>
       return getProgramDetail(args[0] as string)
     // ── Canonical (cross-platform) ──────────────────────────────────────────
     case 'getPrograms': {
+      if (platform === 'hackerone') {
+        const raw = await h1GetPrograms()
+        return adaptPrograms(platform, raw)
+      }
       const raw = await getPrograms()
       return adaptPrograms(platform, raw)
     }
     case 'getSubmissions': {
       const programId = args[0] as string
+      if (platform === 'hackerone') {
+        const raw = await h1GetReports()
+        const filtered = raw.filter((r) => r.relationships.program.data.id === programId)
+        return adaptSubmissions(platform, filtered, programId)
+      }
       const raw = await getProgramSubmissions(programId)
       return adaptSubmissions(platform, raw, programId)
     }
     case 'getPayouts': {
+      if (platform === 'hackerone') {
+        const raw = await h1GetReports()
+        return adaptPayouts(platform, raw)
+      }
       const raw = await getAllPayouts()
       return adaptPayouts(platform, raw)
     }
+    // ── HackerOne raw (uncanonicalised) ────────────────────────────────────
+    case 'h1_getPrograms':
+      return h1GetPrograms()
+    case 'h1_getReports':
+      return h1GetReports()
     default:
       throw new Error(`Custom module called disallowed API method: ${method}`)
   }

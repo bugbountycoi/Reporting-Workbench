@@ -1,17 +1,19 @@
 import type { PlatformId } from '../types'
 import type { CanonicalProgram, CanonicalSubmission, CanonicalPayout } from '../canonical'
 import { adaptPrograms as igAdaptPrograms, adaptSubmissions as igAdaptSubmissions, adaptPayouts as igAdaptPayouts } from './intigriti'
+import { adaptH1Programs, adaptH1Submissions, adaptH1Payouts } from './hackerone'
+import type { H1Program, H1Report } from '../../api/endpoints/hackerone'
 
-// HackerOne and Bugcrowd adapters are wired in Plans 2 and 3 respectively.
-// Calling them before those plans are implemented throws a clear error.
+// Bugcrowd adapter wired in Plan 3.
 
 export function adaptPrograms(platform: PlatformId, raw: unknown[]): CanonicalProgram[] {
   switch (platform) {
     case 'intigriti':
       return igAdaptPrograms(raw as Parameters<typeof igAdaptPrograms>[0])
     case 'hackerone':
+      return adaptH1Programs(raw as H1Program[])
     case 'bugcrowd':
-      throw new Error(`${platform} adapter not yet implemented`)
+      throw new Error('Bugcrowd adapter not yet implemented')
   }
 }
 
@@ -20,8 +22,9 @@ export function adaptSubmissions(platform: PlatformId, raw: unknown[], programId
     case 'intigriti':
       return igAdaptSubmissions(raw as Parameters<typeof igAdaptSubmissions>[0], programId)
     case 'hackerone':
+      return adaptH1Submissions(raw as H1Report[])
     case 'bugcrowd':
-      throw new Error(`${platform} adapter not yet implemented`)
+      throw new Error('Bugcrowd adapter not yet implemented')
   }
 }
 
@@ -30,7 +33,8 @@ export function adaptPayouts(platform: PlatformId, raw: unknown[]): CanonicalPay
     case 'intigriti':
       return igAdaptPayouts(raw as Parameters<typeof igAdaptPayouts>[0])
     case 'hackerone':
+      return adaptH1Payouts(raw as H1Report[])
     case 'bugcrowd':
-      throw new Error(`${platform} adapter not yet implemented`)
+      throw new Error('Bugcrowd adapter not yet implemented')
   }
 }
