@@ -4,6 +4,24 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!--
+      Content Security Policy.
+      frame-ancestors must also be set as an HTTP response header in production
+      (meta CSP cannot enforce it in all browsers).
+      connect-src 'self' covers /api/* (Vite proxy) and same-origin fetches;
+      login.intigriti.com is fetched directly for OAuth token exchange.
+    -->
+    <meta http-equiv="Content-Security-Policy" content="
+      default-src 'self';
+      script-src 'self';
+      worker-src 'self' blob:;
+      connect-src 'self' https://login.intigriti.com;
+      img-src 'self' data: blob:;
+      style-src 'self' 'unsafe-inline';
+      object-src 'none';
+      base-uri 'self';
+      frame-ancestors 'none';
+    " />
     <title>Reporting Workbench</title>
     <style>
       @media print {
