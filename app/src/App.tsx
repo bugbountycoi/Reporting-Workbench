@@ -239,7 +239,7 @@ export default function App() {
         const specs = Array.isArray(parsed) ? parsed : [parsed]
         for (const obj of specs) {
           if (!isUserModuleSpec(obj)) {
-            alert(`"${file.name}" is not a valid Intigriti module file — skipped.`)
+            alert(`"${file.name}" is not a valid Reporting Workbench module file — skipped.`)
             continue
           }
           valid.push(obj as UserModuleSpec)

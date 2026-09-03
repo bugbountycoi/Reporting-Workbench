@@ -60,13 +60,13 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
   // Restore pending OAuth handshake state that survived the page redirect.
   // sessionStorage is cleared after a successful exchange or on error.
   const [liveStep, setLiveStep] = useState<LiveStep>(() =>
-    sessionStorage.getItem('inti_oauth_pending_state') ? 'oauth' : 'token'
+    sessionStorage.getItem('wb_oauth_pending_state') ? 'oauth' : 'token'
   )
   const [bearerInput, setBearerInput] = useState('')
   const [clientId, setClientId] = useState('')
-  const [oauthState] = useState(() => sessionStorage.getItem('inti_oauth_pending_state') ?? '')
-  const [pendingClientId] = useState(() => sessionStorage.getItem('inti_oauth_pending_client_id') ?? '')
-  const [pendingCodeVerifier] = useState(() => sessionStorage.getItem('inti_oauth_pending_code_verifier') ?? '')
+  const [oauthState] = useState(() => sessionStorage.getItem('wb_oauth_pending_state') ?? '')
+  const [pendingClientId] = useState(() => sessionStorage.getItem('wb_oauth_pending_client_id') ?? '')
+  const [pendingCodeVerifier] = useState(() => sessionStorage.getItem('wb_oauth_pending_code_verifier') ?? '')
   const [localStorageEnabled, setLocalStorageEnabled] = useState(false)
   const [testing, setTesting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -205,17 +205,17 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
     const { verifier, challenge } = await generatePKCE()
     // Persist handshake values before navigating — React state is destroyed on redirect.
     // code_verifier is not a secret: it's single-use and worthless without the matching code.
-    sessionStorage.setItem('inti_oauth_pending_state', state)
-    sessionStorage.setItem('inti_oauth_pending_client_id', clientId.trim())
-    sessionStorage.setItem('inti_oauth_pending_code_verifier', verifier)
+    sessionStorage.setItem('wb_oauth_pending_state', state)
+    sessionStorage.setItem('wb_oauth_pending_client_id', clientId.trim())
+    sessionStorage.setItem('wb_oauth_pending_code_verifier', verifier)
     const url = buildAuthUrl(clientId.trim(), state, challenge)
     window.location.href = url
   }
 
   const clearOAuthSession = () => {
-    sessionStorage.removeItem('inti_oauth_pending_state')
-    sessionStorage.removeItem('inti_oauth_pending_client_id')
-    sessionStorage.removeItem('inti_oauth_pending_code_verifier')
+    sessionStorage.removeItem('wb_oauth_pending_state')
+    sessionStorage.removeItem('wb_oauth_pending_client_id')
+    sessionStorage.removeItem('wb_oauth_pending_code_verifier')
   }
 
   const handleClear = () => {

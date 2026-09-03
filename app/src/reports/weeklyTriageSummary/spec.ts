@@ -9,7 +9,7 @@ export const weeklyTriageSummarySpec: UserModuleSpec = {
   description:
     'Triage throughput by configurable interval — acceptance rates, queue trends, and rejection breakdown.',
   category: 'triage',
-  author: 'Intigriti Reporting Workbench',
+  author: 'Reporting Workbench',
   version: '1.0.0',
 
   dataSource: 'submissions',

@@ -20,7 +20,7 @@ export const rawApiExplorerSpec: UserModuleSpec = {
   description:
     'Inspect raw API responses from any read-only endpoint. Useful for understanding available data.',
   category: 'developer',
-  author: 'Intigriti Reporting Workbench',
+  author: 'Reporting Workbench',
   version: '1.0.0',
 
   dataSource: 'programs',

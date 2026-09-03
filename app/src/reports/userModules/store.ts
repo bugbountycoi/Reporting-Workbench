@@ -1,7 +1,7 @@
 import type { UserModuleSpec } from './types'
 import { isUserModuleSpec } from './types'
 
-const STORAGE_KEY = 'inti_user_modules'
+const STORAGE_KEY = 'wb_user_modules'
 
 export function loadUserModuleSpecs(): UserModuleSpec[] {
   try {

@@ -1,5 +1,5 @@
-const MOCK_STORAGE_KEY = 'inti_mock_mode'
-const CACHE_STORAGE_KEY = 'inti_cache_mode'
+const MOCK_STORAGE_KEY = 'wb_mock_mode'
+const CACHE_STORAGE_KEY = 'wb_cache_mode'
 
 // Initialise from localStorage first; VITE_MOCK_MODE env var acts as a dev shortcut
 // (won't persist to localStorage — the user must connect via the UI to persist)
@@ -27,7 +27,7 @@ export function setCacheMode(val: boolean): void {
 // API version management
 // ---------------------------------------------------------------------------
 
-const VERSION_STORAGE_KEY = 'inti_api_version'
+const VERSION_STORAGE_KEY = 'wb_api_version'
 
 /** Versions the app's endpoint code is written and tested against. */
 export const APP_SUPPORTED_VERSIONS = new Set(['v2'])

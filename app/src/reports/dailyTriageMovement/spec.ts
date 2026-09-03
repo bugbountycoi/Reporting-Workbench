@@ -9,7 +9,7 @@ export const dailyTriageMovementSpec: UserModuleSpec = {
   description:
     'Shows submission flow in and out of triage for the selected program, date range, and time interval.',
   category: 'triage',
-  author: 'Intigriti Reporting Workbench',
+  author: 'Reporting Workbench',
   version: '1.0.0',
 
   dataSource: 'submissions',

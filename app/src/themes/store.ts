@@ -3,8 +3,8 @@ import { isThemeSpec } from './types'
 import { intigritiTheme } from './builtins/intigriti'
 import { communityTheme } from './builtins/community'
 
-const ACTIVE_KEY = 'inti_active_theme'
-const USER_THEMES_KEY = 'inti_user_themes'
+const ACTIVE_KEY = 'wb_active_theme'
+const USER_THEMES_KEY = 'wb_user_themes'
 
 export const BUILTIN_THEMES: ThemeSpec[] = [intigritiTheme, communityTheme]
 export const BUILTIN_IDS = new Set(BUILTIN_THEMES.map((t) => t.id))

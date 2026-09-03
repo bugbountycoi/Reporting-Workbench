@@ -14,11 +14,11 @@ function buildFilename(scope: string, endpoint: string, encrypted: boolean): str
   const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19) + 'Z'
   const ext = encrypted ? 'enc' : 'json'
   const safePart = (s: string) => s.replace(/[^a-zA-Z0-9-_]/g, '_').slice(0, 40)
-  return `intigriti-cache__${safePart(scope)}__${safePart(endpoint)}__${ts}.${ext}`
+  return `wb-cache__${safePart(scope)}__${safePart(endpoint)}__${ts}.${ext}`
 }
 
 function parseFilename(filename: string): Omit<CacheFileEntry, 'sizeBytes'> | null {
-  const match = filename.match(/^intigriti-cache__(.+)__(.+)__(\d{4}-\d{2}-\d{2}T[\d-]+Z)\.(json|enc)$/)
+  const match = filename.match(/^wb-cache__(.+)__(.+)__(\d{4}-\d{2}-\d{2}T[\d-]+Z)\.(json|enc)$/)
   if (!match) return null
   return {
     filename,

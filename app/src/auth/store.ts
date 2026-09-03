@@ -1,7 +1,7 @@
-export const TOKEN_STORAGE_KEY = 'intigriti_workbench_token'
+export const TOKEN_STORAGE_KEY = 'wb_token'
 // AES-GCM key lives in sessionStorage: cleared when the tab closes so
 // stored ciphertext is automatically undecryptable in a new browser session.
-const SESSION_EK = 'inti_wb_ek'
+const SESSION_EK = 'wb_ek'
 
 let _token: string | null = null
 let _refreshToken: string | null = null

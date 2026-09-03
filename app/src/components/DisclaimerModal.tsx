@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-const STORAGE_KEY = 'inti_disclaimer_accepted'
+const STORAGE_KEY = 'wb_disclaimer_accepted'
 
 export function isDisclaimerAccepted(): boolean {
   return localStorage.getItem(STORAGE_KEY) === 'true'

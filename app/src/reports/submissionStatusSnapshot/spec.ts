@@ -9,7 +9,7 @@ export const submissionStatusSnapshotSpec: UserModuleSpec = {
   description:
     'Current operational view of where submissions stand — by status, severity, and age.',
   category: 'snapshot',
-  author: 'Intigriti Reporting Workbench',
+  author: 'Reporting Workbench',
   version: '1.0.0',
 
   dataSource: 'submissions',

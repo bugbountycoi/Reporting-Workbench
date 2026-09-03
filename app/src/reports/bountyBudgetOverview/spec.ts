@@ -21,7 +21,7 @@ export const bountyBudgetOverviewSpec: UserModuleSpec = {
   title: 'Bounty Budget Overview',
   description: 'Shows bounty spend, award distribution by severity, and remaining program budget.',
   category: 'bounty',
-  author: 'Intigriti Reporting Workbench',
+  author: 'Reporting Workbench',
   version: '1.0.0',
 
   dataSource: 'payouts',

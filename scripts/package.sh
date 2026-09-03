@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# package.sh — bundle the Intigriti Reporting Workbench for distribution
+# package.sh — bundle the Reporting Workbench for distribution
 #
 # Usage:
 #   ./scripts/package.sh                    — package the full workbench
@@ -26,7 +26,7 @@ if [ "$MODE" = "module" ]; then
   [ -d "$MODULE_PATH" ] || die "Module directory not found: src/reports/$MODULE"
 
   mkdir -p "$OUT"
-  ARCHIVE="$OUT/inti-module-${MODULE}.zip"
+  ARCHIVE="$OUT/module-${MODULE}.zip"
   cd "$APP/src/reports"
   zip -r "$ARCHIVE" "$MODULE/" --quiet
   echo "Module packaged → $ARCHIVE"
@@ -93,10 +93,10 @@ node -e "
   fs.writeFileSync('$APP/package.json', JSON.stringify(p, null, 2) + '\n');
 "
 
-ARCHIVE_NAME="intigriti-reporting-workbench-${DISPLAY}.zip"
-STAGING="$OUT/_staging/intigriti-reporting-workbench"
+ARCHIVE_NAME="reporting-workbench-${DISPLAY}.zip"
+STAGING="$OUT/_staging/reporting-workbench"
 
-echo "Packaging Intigriti Reporting Workbench v${DISPLAY}..."
+echo "Packaging Reporting Workbench v${DISPLAY}..."
 
 # ── Build the app ──────────────────────────────────────────────────────────────
 echo "Installing dependencies..."
@@ -124,7 +124,7 @@ cp "$APP/REPORT_MODULE_GUIDE.md" "$STAGING/REPORT_MODULE_GUIDE.md" 2>/dev/null |
 # ── Start scripts ──────────────────────────────────────────────────────────────
 cat > "$STAGING/start.sh" << 'STARTSCRIPT'
 #!/usr/bin/env bash
-# Start the Intigriti Reporting Workbench
+# Start the Reporting Workbench
 cd "$(dirname "$0")"
 
 if ! command -v node &>/dev/null; then
@@ -219,7 +219,7 @@ find "$STAGING" -name ".DS_Store" -delete
 find "$STAGING" -name "__MACOSX" -exec rm -rf {} + 2>/dev/null || true
 
 cd "$OUT/_staging"
-zip -r "$OUT/$ARCHIVE_NAME" "intigriti-reporting-workbench/" --quiet
+zip -r "$OUT/$ARCHIVE_NAME" "reporting-workbench/" --quiet
 
 # Cleanup
 rm -rf "$OUT/_staging"

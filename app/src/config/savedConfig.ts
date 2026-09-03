@@ -1,4 +1,4 @@
-const CONFIG_KEY = 'inti-rw-config'
+const CONFIG_KEY = 'wb-config'
 
 export interface SavedModuleParams {
   programIndices: number[]
