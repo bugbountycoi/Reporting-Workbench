@@ -42,7 +42,13 @@ const TRANSFORM_CTX: TransformCtx = {
 // API proxy — routes ctx.* calls back to the main thread
 // ---------------------------------------------------------------------------
 
-type AllowedMethod = 'getProgramSubmissions' | 'getAllPayouts' | 'getProgramDetail'
+type AllowedMethod =
+  | 'getProgramSubmissions'
+  | 'getAllPayouts'
+  | 'getProgramDetail'
+  | 'getPrograms'
+  | 'getSubmissions'
+  | 'getPayouts'
 
 const pendingApiRequests = new Map<string, {
   resolve: (value: unknown) => void
@@ -60,9 +66,14 @@ function apiProxy(method: AllowedMethod, args: unknown[]): Promise<unknown> {
 }
 
 const FETCH_CTX = {
+  // ── Intigriti-specific (legacy) ────────────────────────────────────────────
   getProgramSubmissions: (id: string) => apiProxy('getProgramSubmissions', [id]),
   getAllPayouts: () => apiProxy('getAllPayouts', []),
   getProgramDetail: (id: string) => apiProxy('getProgramDetail', [id]),
+  // ── Canonical (cross-platform) ─────────────────────────────────────────────
+  getPrograms: () => apiProxy('getPrograms', []),
+  getSubmissions: (programId: string) => apiProxy('getSubmissions', [programId]),
+  getPayouts: () => apiProxy('getPayouts', []),
 }
 
 // ---------------------------------------------------------------------------

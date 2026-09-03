@@ -6,9 +6,10 @@ import type { ReportModule, ReportData, ReportParams, ParamField } from '../type
 import type { UserModuleSpec } from './types'
 import { specChartConfig } from './types'
 import { declarativeTransform } from './transform'
-import { getProgramSubmissions } from '../../api/endpoints/programs'
+import { getPrograms, getProgramSubmissions, getProgramDetail } from '../../api/endpoints/programs'
 import { getAllPayouts } from '../../api/endpoints/payouts'
-import { getProgramDetail } from '../../api/endpoints/programs'
+import { adaptPrograms, adaptSubmissions, adaptPayouts } from '../../platforms/adapters'
+import { getActivePlatform } from '../../platforms/store'
 import { INTERVAL_OPTIONS } from '../../utils/intervals'
 import type { ProgramOverviewViewModel } from '../../api/types'
 
@@ -86,16 +87,32 @@ function runInWorker<T>(
   })
 }
 
-// Main-thread allow-list for Worker API proxy requests (N-1, N-3).
-// Only these three named endpoints are permitted — no raw path access.
+// Main-thread allow-list for Worker API proxy requests.
+// Only these named endpoints are permitted — no raw path access.
 async function handleApiProxy(method: string, args: unknown[]): Promise<unknown> {
+  const platform = getActivePlatform()
   switch (method) {
+    // ── Intigriti-specific (legacy) ─────────────────────────────────────────
     case 'getProgramSubmissions':
       return getProgramSubmissions(args[0] as string)
     case 'getAllPayouts':
       return getAllPayouts()
     case 'getProgramDetail':
       return getProgramDetail(args[0] as string)
+    // ── Canonical (cross-platform) ──────────────────────────────────────────
+    case 'getPrograms': {
+      const raw = await getPrograms()
+      return adaptPrograms(platform, raw)
+    }
+    case 'getSubmissions': {
+      const programId = args[0] as string
+      const raw = await getProgramSubmissions(programId)
+      return adaptSubmissions(platform, raw, programId)
+    }
+    case 'getPayouts': {
+      const raw = await getAllPayouts()
+      return adaptPayouts(platform, raw)
+    }
     default:
       throw new Error(`Custom module called disallowed API method: ${method}`)
   }

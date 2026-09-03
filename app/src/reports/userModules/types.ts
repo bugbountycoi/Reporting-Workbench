@@ -1,4 +1,5 @@
 import type { ParamField, ReportData, ChartConfig } from '../types'
+import type { PlatformId } from '../../platforms/types'
 
 export type ModuleCategory = 'triage' | 'bounty' | 'snapshot' | 'developer'
 export type DataSource = 'submissions' | 'payouts' | 'programs'
@@ -81,6 +82,9 @@ export interface UserModuleSpec {
   tableColumns: { key: string; label: string }[]
   exportFilename: string
 
+  // Platform this module targets. Omit for platform-agnostic modules.
+  platform?: PlatformId | PlatformId[]
+
   // --- Optional extra param fields (beyond the auto-generated ones) ---
   // Use for special selects like rawApiExplorer's endpoint dropdown
   customParamFields?: ParamField[]
@@ -107,11 +111,17 @@ export interface UserModuleSpec {
 }
 
 // Context object passed to customFetchData(params, ctx).
-// Only these three named helpers are available — no raw apiGet.
+// Only these named helpers are available — no raw apiGet.
 export interface FetchCtx {
+  // ── Intigriti-specific (legacy) ──────────────────────────────────────────
   getProgramSubmissions: (id: string, startDate?: string, endDate?: string) => Promise<unknown[]>
   getAllPayouts: () => Promise<unknown[]>
   getProgramDetail: (id: string) => Promise<unknown>
+
+  // ── Canonical (cross-platform) ───────────────────────────────────────────
+  getPrograms: () => Promise<unknown[]>
+  getSubmissions: (programId: string) => Promise<unknown[]>
+  getPayouts: () => Promise<unknown[]>
 }
 
 // Context object passed to customTransform(raw, params, programs, ctx)
