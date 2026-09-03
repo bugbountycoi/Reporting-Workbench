@@ -35,11 +35,14 @@ export const APP_SUPPORTED_VERSIONS = new Set(['v2'])
 /** All versions probed at connect time — includes unsupported ones for visibility. */
 export const KNOWN_API_VERSIONS = ['v1', 'v2'] as const
 
-let _activeVersion: string = localStorage.getItem(VERSION_STORAGE_KEY) ?? 'v2'
+const _knownVersionSet = new Set<string>(KNOWN_API_VERSIONS)
+const _rawVersion = localStorage.getItem(VERSION_STORAGE_KEY)
+let _activeVersion: string = (_rawVersion && _knownVersionSet.has(_rawVersion)) ? _rawVersion : 'v2'
 
 export function getActiveApiVersion(): string { return _activeVersion }
 
 export function setActiveApiVersion(v: string): void {
+  if (!_knownVersionSet.has(v)) return
   _activeVersion = v
   localStorage.setItem(VERSION_STORAGE_KEY, v)
 }
