@@ -135,5 +135,5 @@ State normalization convention:
 - **Pagination**: Different platforms paginate differently (cursor, page/size, offset).
   Handle pagination inside the endpoint helper — never expose it to module code.
 - **Session storage key conflict**: The OAuth PKCE handshake uses sessionStorage keys
-  prefixed `inti_oauth_*`. If another platform adds OAuth support, these keys must be
+  prefixed `wb_oauth_*`. If another platform adds OAuth support, these keys must be
   namespaced by platform.
