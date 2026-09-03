@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// server.mjs — Intigriti Reporting Workbench standalone server
+// server.mjs — Reporting Workbench standalone server
 // No npm install needed — uses only Node.js built-ins.
 //
 // Usage:
@@ -83,8 +83,10 @@ const server = http.createServer((req, res) => {
     return proxy(req, res, 'api.intigriti.com', '/external/company' + target)
   }
 
-  // OAuth proxy
-  if (url.startsWith('/oauth')) {
+  // OAuth login proxy — /oauth/login/* → login.intigriti.com/connect/authorize/*
+  // /oauth/callback is intentionally excluded: it must be served as the SPA so
+  // React can read the code/state params and complete the token exchange.
+  if (url.startsWith('/oauth/login')) {
     const target = url.replace(/^\/oauth\/login/, '/connect/authorize')
     return proxy(req, res, 'login.intigriti.com', target)
   }
@@ -99,7 +101,7 @@ const server = http.createServer((req, res) => {
 
 const port = (await checkPort(1337)) ? 1337 : 31337
 server.listen(port, '127.0.0.1', () => {
-  console.log(`\n  Intigriti Reporting Workbench`)
+  console.log(`\n  Reporting Workbench`)
   console.log(`  Open → http://localhost:${port}`)
   console.log(`  Press Ctrl+C to stop\n`)
 })
