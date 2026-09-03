@@ -256,7 +256,7 @@ export default function App() {
 
     if (hasCustomJs.length > 0) {
       const ok = window.confirm(
-        `Warning: The following module(s) contain custom JavaScript that will execute in your browser:\n\n${hasCustomJs.join('\n')}\n\nOnly import modules from authors you trust.\n\nClick OK to continue, or Cancel to abort.`
+        `Warning: The following module(s) contain custom JavaScript that will execute in your browser:\n\n${hasCustomJs.join('\n')}\n\nCustom JavaScript can make HTTP requests, including sending your report data to external servers. Only import modules from authors you trust.\n\nClick OK to continue, or Cancel to abort.`
       )
       if (!ok) return
     }
@@ -278,7 +278,7 @@ export default function App() {
       const hasCustomJs = specs.filter((s) => s.customTransform || s.customFetchData || s.customSummaryFormatter).map((s) => s.title)
       if (hasCustomJs.length > 0) {
         const ok = window.confirm(
-          `Warning: The following module(s) contain custom JavaScript that will execute in your browser:\n\n${hasCustomJs.join('\n')}\n\nOnly import modules from authors you trust.\n\nClick OK to continue, or Cancel to abort.`
+          `Warning: The following module(s) contain custom JavaScript that will execute in your browser:\n\n${hasCustomJs.join('\n')}\n\nCustom JavaScript can make HTTP requests, including sending your report data to external servers. Only import modules from authors you trust.\n\nClick OK to continue, or Cancel to abort.`
         )
         if (!ok) { setUrlImportBusy(false); return }
       }

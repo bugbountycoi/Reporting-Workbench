@@ -12,7 +12,17 @@
  * fetchData is also isolated here (not in the main thread) so that it has no
  * access to localStorage/sessionStorage/fetch. API calls are proxied back to
  * the main thread via postMessage using an explicit allow-list.
+ *
+ * Network access is explicitly revoked below so user code executed via
+ * new Function() cannot exfiltrate report data to arbitrary servers.
  */
+
+// Revoke all direct network access. new Function() bodies resolve fetch/XHR
+// via the global scope (self), so nullifying them here prevents user code from
+// bypassing the API proxy bridge. Must run before any user code executes.
+;(self as unknown as Record<string, unknown>).fetch = undefined
+;(self as unknown as Record<string, unknown>).XMLHttpRequest = undefined
+
 import { bucketKey, allBuckets, INTERVAL_OPTIONS } from '../../utils/intervals'
 import { daysBetween } from '../../utils/dates'
 import { BRAND_COMPARE_COLORS } from '../../themes/brandColors'
