@@ -127,8 +127,12 @@ function buildParamFields(spec: UserModuleSpec): ParamField[] {
   }
 
   // Custom extra fields (e.g. rawApiExplorer's endpoint select)
-  if (spec.customParamFields) {
-    fields.push(...spec.customParamFields)
+  if (Array.isArray(spec.customParamFields)) {
+    for (const f of spec.customParamFields) {
+      if (f && typeof f.key === 'string' && typeof f.label === 'string' && typeof f.type === 'string') {
+        fields.push(f as ParamField)
+      }
+    }
   }
 
   return fields
@@ -198,10 +202,12 @@ export function specToModule(spec: UserModuleSpec, programs: ProgramOverviewView
     sampleData: spec.sampleFixtureData ?? null,
     samplePreview,
 
-    tableColumns: spec.tableColumns.map((col) => ({
-      accessorKey: col.key,
-      header: col.label,
-    })),
+    tableColumns: (Array.isArray(spec.tableColumns) ? spec.tableColumns : [])
+      .filter((col) => col && typeof col.key === 'string' && typeof col.label === 'string')
+      .map((col) => ({
+        accessorKey: col.key,
+        header: col.label,
+      })),
 
     exportConfig: {
       csvFilename: spec.exportFilename,
