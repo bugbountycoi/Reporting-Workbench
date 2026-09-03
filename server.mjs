@@ -83,6 +83,12 @@ const server = http.createServer((req, res) => {
     return proxy(req, res, 'api.intigriti.com', '/external/company' + target)
   }
 
+  // OAuth token proxy — /oauth/token → login.intigriti.com/connect/token
+  // Same-origin so the browser's token exchange is never CORS-blocked.
+  if (url.startsWith('/oauth/token')) {
+    return proxy(req, res, 'login.intigriti.com', '/connect/token')
+  }
+
   // OAuth login proxy — /oauth/login/* → login.intigriti.com/connect/authorize/*
   // /oauth/callback is intentionally excluded: it must be served as the SPA so
   // React can read the code/state params and complete the token exchange.

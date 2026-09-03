@@ -42,18 +42,6 @@ export function buildAuthUrl(clientId: string, state: string, codeChallenge: str
   return `${API_CONFIG.oauthAuthorizeUrl}?${params.toString()}`
 }
 
-// For confidential clients (client_secret flow) — no PKCE challenge needed.
-export function buildAuthUrlWithSecret(clientId: string, state: string): string {
-  const params = new URLSearchParams({
-    response_type: 'code',
-    client_id: clientId,
-    redirect_uri: API_CONFIG.oauthRedirectUri,
-    scope: API_CONFIG.defaultScopes,
-    state,
-  })
-  return `${API_CONFIG.oauthAuthorizeUrl}?${params.toString()}`
-}
-
 export async function exchangeCode(
   code: string,
   clientId: string,
@@ -85,15 +73,20 @@ export async function exchangeCode(
   return tokens
 }
 
+// Confidential client that also requires PKCE (Intigriti's IdentityServer default):
+// send client_secret AND code_verifier. The authorize step used buildAuthUrl, so a
+// code_challenge was already presented and the verifier must match it here.
 export async function exchangeCodeWithSecret(
   code: string,
   clientId: string,
   clientSecret: string,
+  codeVerifier: string,
 ): Promise<TokenResponse> {
   const body = new URLSearchParams({
     grant_type: 'authorization_code',
     client_id: clientId,
     client_secret: clientSecret,
+    code_verifier: codeVerifier,
     code,
     redirect_uri: API_CONFIG.oauthRedirectUri,
     scope: API_CONFIG.defaultScopes,

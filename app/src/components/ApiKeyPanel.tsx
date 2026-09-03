@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { setToken, clearToken, enableLocalStorage, disableLocalStorage } from '../auth/store'
-import { buildAuthUrl, buildAuthUrlWithSecret, exchangeCode, exchangeCodeWithSecret, generatePKCE, scheduleRefresh, cancelRefreshSchedule, registerOAuthCallbackHandler } from '../auth/oauth'
+import { buildAuthUrl, exchangeCode, exchangeCodeWithSecret, generatePKCE, scheduleRefresh, cancelRefreshSchedule, registerOAuthCallbackHandler } from '../auth/oauth'
 import { getPrograms } from '../api/endpoints/programs'
 import { getMockMode, setMockMode, getCacheMode, setCacheMode, getActiveApiVersion, setActiveApiVersion, API_CONFIG } from '../config/api'
 import { probeApiVersions, selectBestVersion, type VersionProbeResult } from '../api/versions'
@@ -69,7 +69,7 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
   const [pendingClientId] = useState(() => sessionStorage.getItem('wb_oauth_pending_client_id') ?? '')
   const [pendingCodeVerifier] = useState(() => sessionStorage.getItem('wb_oauth_pending_code_verifier') ?? '')
   const [oauthMethod, setOAuthMethod] = useState<OAuthMethod>(() =>
-    (sessionStorage.getItem('wb_oauth_pending_method') as OAuthMethod | null) ?? 'pkce'
+    (sessionStorage.getItem('wb_oauth_pending_method') as OAuthMethod | null) ?? 'secret'
   )
   const [clientSecret, setClientSecret] = useState('')
   const [localStorageEnabled, setLocalStorageEnabled] = useState(false)
@@ -85,9 +85,9 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
     const unregister = registerOAuthCallbackHandler(async (code, state) => {
       if (state !== oauthState) return
       try {
-        const method = sessionStorage.getItem('wb_oauth_pending_method') ?? 'pkce'
+        const method = sessionStorage.getItem('wb_oauth_pending_method') ?? 'secret'
         const tokens = method === 'secret'
-          ? await exchangeCodeWithSecret(code, pendingClientId, sessionStorage.getItem('wb_oauth_client_secret') ?? '')
+          ? await exchangeCodeWithSecret(code, pendingClientId, sessionStorage.getItem('wb_oauth_client_secret') ?? '', pendingCodeVerifier)
           : await exchangeCode(code, pendingClientId, pendingCodeVerifier)
         clearOAuthSession()
         scheduleRefresh(pendingClientId, tokens.expires_in)
@@ -214,16 +214,14 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
     sessionStorage.setItem('wb_oauth_pending_state', state)
     sessionStorage.setItem('wb_oauth_pending_client_id', clientId.trim())
     sessionStorage.setItem('wb_oauth_pending_method', oauthMethod)
-    let url: string
-    if (oauthMethod === 'pkce') {
-      const { verifier, challenge } = await generatePKCE()
-      sessionStorage.setItem('wb_oauth_pending_code_verifier', verifier)
-      url = buildAuthUrl(clientId.trim(), state, challenge)
-    } else {
+    // Both methods present a PKCE challenge at authorize — Intigriti's IdentityServer
+    // requires PKCE. The Client Secret method additionally sends the secret at token exchange.
+    const { verifier, challenge } = await generatePKCE()
+    sessionStorage.setItem('wb_oauth_pending_code_verifier', verifier)
+    if (oauthMethod === 'secret') {
       sessionStorage.setItem('wb_oauth_client_secret', clientSecret.trim())
-      url = buildAuthUrlWithSecret(clientId.trim(), state)
     }
-    window.location.href = url
+    window.location.href = buildAuthUrl(clientId.trim(), state, challenge)
   }
 
   const clearOAuthSession = () => {
@@ -485,7 +483,7 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
                 <div>
                   <p className="font-semibold mb-1">2. Enable these scopes on your OAuth app</p>
                   <div className="flex flex-wrap gap-1">
-                    {['company_external_api', 'offline_access'].map((s) => (
+                    {['company_external_api', 'core_platform:read', 'offline_access'].map((s) => (
                       <code key={s} className="font-mono bg-white border border-amber-200 rounded px-1.5 py-0.5 text-xs text-gray-800">{s}</code>
                     ))}
                   </div>
@@ -497,7 +495,7 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
               <div>
                 <p className="text-xs font-semibold text-gray-700 mb-1.5">Auth method</p>
                 <div className="flex gap-2">
-                  {(['pkce', 'secret'] as OAuthMethod[]).map((m) => (
+                  {(['secret', 'pkce'] as OAuthMethod[]).map((m) => (
                     <button
                       key={m}
                       onClick={() => setOAuthMethod(m)}
@@ -507,14 +505,14 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
                           : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                       }`}
                     >
-                      {m === 'pkce' ? 'PKCE (recommended)' : 'Client Secret'}
+                      {m === 'secret' ? 'Client Secret (recommended)' : 'PKCE (experimental)'}
                     </button>
                   ))}
                 </div>
                 <p className="mt-1.5 text-xs text-brand-gray-mid">
-                  {oauthMethod === 'pkce'
-                    ? 'No client secret needed — a one-time cryptographic challenge replaces it.'
-                    : 'Your client secret is session-only and never saved to disk.'}
+                  {oauthMethod === 'secret'
+                    ? 'Client secret + PKCE challenge, as the Intigriti API requires. Your secret is session-only and never saved to disk.'
+                    : 'Experimental — PKCE only, no client secret. The Intigriti API requires a secret, so this will likely be rejected at token exchange.'}
                 </p>
               </div>
 

@@ -57,7 +57,9 @@ export const API_CONFIG = {
   baseUrl: '/api/v2',
   authBaseUrl: 'https://login.intigriti.com',
   oauthAuthorizeUrl: 'https://login.intigriti.com/connect/authorize',
-  oauthTokenUrl: 'https://login.intigriti.com/connect/token',
+  // Relative → routed through the same-origin token proxy (Vite dev / server.mjs /
+  // Cloudflare worker) so the browser is never CORS-blocked reaching connect/token.
+  oauthTokenUrl: '/oauth/token',
   oauthRedirectUri: `${window.location.origin}/oauth/callback`,
-  defaultScopes: 'company_external_api offline_access',
+  defaultScopes: 'company_external_api core_platform:read offline_access',
 } as const
