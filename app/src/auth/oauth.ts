@@ -171,3 +171,21 @@ export function cancelRefreshSchedule(): void {
     _refreshTimer = null
   }
 }
+
+// ---------------------------------------------------------------------------
+// OAuth callback bridge — avoids window.CustomEvent (interceptable by extensions)
+// ---------------------------------------------------------------------------
+
+type OAuthCallbackFn = (code: string, state: string) => void
+let _oauthCallbackHandler: OAuthCallbackFn | null = null
+
+export function registerOAuthCallbackHandler(fn: OAuthCallbackFn): () => void {
+  _oauthCallbackHandler = fn
+  return () => { if (_oauthCallbackHandler === fn) _oauthCallbackHandler = null }
+}
+
+export function invokeOAuthCallback(code: string, state: string): void {
+  const handler = _oauthCallbackHandler
+  _oauthCallbackHandler = null
+  handler?.(code, state)
+}

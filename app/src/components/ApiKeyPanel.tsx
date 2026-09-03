@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { setToken, clearToken, enableLocalStorage, disableLocalStorage } from '../auth/store'
-import { buildAuthUrl, buildAuthUrlWithSecret, exchangeCode, exchangeCodeWithSecret, generatePKCE, scheduleRefresh, cancelRefreshSchedule } from '../auth/oauth'
+import { buildAuthUrl, buildAuthUrlWithSecret, exchangeCode, exchangeCodeWithSecret, generatePKCE, scheduleRefresh, cancelRefreshSchedule, registerOAuthCallbackHandler } from '../auth/oauth'
 import { getPrograms } from '../api/endpoints/programs'
 import { getMockMode, setMockMode, getCacheMode, setCacheMode, getActiveApiVersion, setActiveApiVersion, API_CONFIG } from '../config/api'
 import { probeApiVersions, selectBestVersion, type VersionProbeResult } from '../api/versions'
@@ -81,8 +81,8 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
   const [activeVersion, setLocalActiveVersion] = useState(getActiveApiVersion)
 
   useEffect(() => {
-    const handler = async (e: Event) => {
-      const { code, state } = (e as CustomEvent<{ code: string; state: string }>).detail
+    if (liveStep !== 'oauth') return
+    const unregister = registerOAuthCallbackHandler(async (code, state) => {
       if (state !== oauthState) return
       try {
         const method = sessionStorage.getItem('wb_oauth_pending_method') ?? 'pkce'
@@ -97,10 +97,9 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
         clearOAuthSession()
         setError(String(err))
       }
-    }
-    window.addEventListener('oauth-callback', handler)
-    return () => window.removeEventListener('oauth-callback', handler)
-  }, [oauthState, pendingClientId, pendingCodeVerifier, onConnected])
+    })
+    return unregister
+  }, [liveStep, oauthState, pendingClientId, pendingCodeVerifier, onConnected])
 
   // Clicking a source button is the primary action:
   //   Mock  → connect immediately with fixture data

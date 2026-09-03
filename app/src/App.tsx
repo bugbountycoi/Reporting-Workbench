@@ -22,6 +22,7 @@ import { importModuleFromUrl, ModuleLoadError } from './reports/userModules/load
 import { ReportBuilder } from './components/ReportBuilder'
 import type { ProgramOverviewViewModel } from './api/types'
 import { getMockMode, getCacheMode } from './config/api'
+import { invokeOAuthCallback } from './auth/oauth'
 import { DisclaimerModal, isDisclaimerAccepted } from './components/DisclaimerModal'
 import { ThemeSwitcher } from './components/ThemeSwitcher'
 import { saveWorkbenchConfig, loadWorkbenchConfig, type SavedModuleParams, type SavedSettings } from './config/savedConfig'
@@ -158,7 +159,9 @@ export default function App() {
       const code = url.searchParams.get('code')
       const state = url.searchParams.get('state')
       if (code && state) {
-        window.dispatchEvent(new CustomEvent('oauth-callback', { detail: { code, state } }))
+        // Call the module-level handler registered by ApiKeyPanel directly.
+        // This avoids window.CustomEvent which is interceptable by browser extensions.
+        invokeOAuthCallback(code, state)
         window.history.replaceState({}, '', '/')
       }
     }
