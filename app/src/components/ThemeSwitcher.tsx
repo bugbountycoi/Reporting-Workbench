@@ -3,6 +3,7 @@ import { useTheme } from '../themes/ThemeProvider'
 import { ThemeLoadError } from '../themes/loader'
 import type { ThemeSpec } from '../themes/types'
 import { ThemeEditor } from './ThemeEditor'
+import { ContributeModal } from './ContributeModal'
 
 function PaletteIcon({ className }: { className?: string }) {
   return (
@@ -35,6 +36,7 @@ export function ThemeSwitcher() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [editorTheme, setEditorTheme] = useState<ThemeSpec | null>(null)
+  const [contributeTheme, setContributeTheme] = useState<ThemeSpec | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const openEditor = (theme: ThemeSpec) => {
@@ -116,19 +118,29 @@ export function ThemeSwitcher() {
                   Edit
                 </button>
                 {!builtinIds.has(spec.id) && (
-                  <button
-                    onClick={() => {
-                      if (confirm(`Remove theme "${spec.name}"?`)) {
-                        uninstallTheme(spec.id)
-                        if (activeTheme.id === spec.id) setActiveTheme(allThemes[0])
-                      }
-                    }}
-                    className="hidden group-hover:block text-gray-300 hover:text-red-500 shrink-0 transition-colors text-xs px-1"
-                    title="Remove theme"
-                    aria-label={`Remove theme ${spec.name}`}
-                  >
-                    ✕
-                  </button>
+                  <>
+                    <button
+                      onClick={() => { setOpen(false); setContributeTheme(spec) }}
+                      className="hidden group-hover:block text-xs text-gray-400 hover:text-brand-blue shrink-0 transition-colors px-1"
+                      title="Submit this theme to the community"
+                      aria-label={`Contribute theme ${spec.name}`}
+                    >
+                      Contribute
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (confirm(`Remove theme "${spec.name}"?`)) {
+                          uninstallTheme(spec.id)
+                          if (activeTheme.id === spec.id) setActiveTheme(allThemes[0])
+                        }
+                      }}
+                      className="hidden group-hover:block text-gray-300 hover:text-red-500 shrink-0 transition-colors text-xs px-1"
+                      title="Remove theme"
+                      aria-label={`Remove theme ${spec.name}`}
+                    >
+                      ✕
+                    </button>
+                  </>
                 )}
               </div>
             ))}
@@ -202,6 +214,15 @@ export function ThemeSwitcher() {
         <ThemeEditor
           initialTheme={editorTheme}
           onClose={() => setEditorTheme(null)}
+        />
+      )}
+
+      {contributeTheme && (
+        <ContributeModal
+          type="theme"
+          name={contributeTheme.name}
+          payload={contributeTheme}
+          onClose={() => setContributeTheme(null)}
         />
       )}
     </div>

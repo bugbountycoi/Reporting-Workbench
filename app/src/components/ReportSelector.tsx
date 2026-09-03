@@ -51,6 +51,7 @@ interface Props {
   onExport: (id: string) => void
   onEdit: (id: string) => void
   onDelete: (id: string) => void
+  onContribute: (id: string) => void
 }
 
 export function ReportSelector({
@@ -64,6 +65,7 @@ export function ReportSelector({
   onExport,
   onEdit,
   onDelete,
+  onContribute,
 }: Props) {
   const availableCategories = useMemo(() => {
     const order = Object.keys(CATEGORY_LABELS)
@@ -184,6 +186,13 @@ export function ReportSelector({
                       className="text-amber-600 hover:underline"
                     >
                       Edit
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onContribute(report.id) }}
+                      className="text-brand-blue hover:underline"
+                      title="Submit to the community via a pull request"
+                    >
+                      Contribute ↑
                     </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); onDelete(report.id) }}

@@ -27,6 +27,7 @@ import { DisclaimerModal, isDisclaimerAccepted } from './components/DisclaimerMo
 import { ThemeSwitcher } from './components/ThemeSwitcher'
 import { BugReportBanner } from './components/BugReportBanner'
 import { BugReportModal, type BugReportContext } from './components/BugReportModal'
+import { ContributeModal } from './components/ContributeModal'
 import { saveWorkbenchConfig, loadWorkbenchConfig, type SavedModuleParams, type SavedSettings } from './config/savedConfig'
 import { cacheConfig } from './cache/cacheConfig'
 
@@ -94,6 +95,7 @@ export default function App() {
 
   const [isMockMode, setIsMockMode] = useState(() => getMockMode())
   const [bugReportOpen, setBugReportOpen] = useState(false)
+  const [contributeSpec, setContributeSpec] = useState<UserModuleSpec | null>(null)
 
   const [panelsOpen, setPanelsOpen] = useState({ api: true, cache: true, encryption: true })
   const [cacheConfigured, setCacheConfigured] = useState(false)
@@ -331,6 +333,12 @@ export default function App() {
     setBuilderOpen(true)
   }
 
+  const handleContributeModule = (id: string) => {
+    const spec = getSpecById(id)
+    if (!spec) return
+    setContributeSpec(spec as UserModuleSpec)
+  }
+
   const handleSaveModule = (spec: UserModuleSpec) => {
     if (editingSpec) {
       replaceUserModuleSpec(spec)
@@ -457,6 +465,14 @@ export default function App() {
       )}
       {bugReportOpen && (
         <BugReportModal context={bugContext} onClose={() => setBugReportOpen(false)} />
+      )}
+      {contributeSpec && (
+        <ContributeModal
+          type="module"
+          name={contributeSpec.title}
+          payload={contributeSpec}
+          onClose={() => setContributeSpec(null)}
+        />
       )}
       {/* Config panels row */}
       {anyConfigPanelOpen && (
@@ -594,6 +610,7 @@ export default function App() {
                 onExport={handleExportModule}
                 onEdit={handleEditModule}
                 onDelete={handleDeleteModule}
+                onContribute={handleContributeModule}
               />
             )}
           </section>
