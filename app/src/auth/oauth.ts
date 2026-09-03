@@ -42,6 +42,18 @@ export function buildAuthUrl(clientId: string, state: string, codeChallenge: str
   return `${API_CONFIG.oauthAuthorizeUrl}?${params.toString()}`
 }
 
+// For confidential clients (client_secret flow) — no PKCE challenge needed.
+export function buildAuthUrlWithSecret(clientId: string, state: string): string {
+  const params = new URLSearchParams({
+    response_type: 'code',
+    client_id: clientId,
+    redirect_uri: API_CONFIG.oauthRedirectUri,
+    scope: API_CONFIG.defaultScopes,
+    state,
+  })
+  return `${API_CONFIG.oauthAuthorizeUrl}?${params.toString()}`
+}
+
 export async function exchangeCode(
   code: string,
   clientId: string,
@@ -73,9 +85,40 @@ export async function exchangeCode(
   return tokens
 }
 
-// Public PKCE clients send no client_secret on refresh — the refresh token
-// itself is the credential. If the server rejects this, refresh silently
-// fails and the user re-authenticates on the next request.
+export async function exchangeCodeWithSecret(
+  code: string,
+  clientId: string,
+  clientSecret: string,
+): Promise<TokenResponse> {
+  const body = new URLSearchParams({
+    grant_type: 'authorization_code',
+    client_id: clientId,
+    client_secret: clientSecret,
+    code,
+    redirect_uri: API_CONFIG.oauthRedirectUri,
+    scope: API_CONFIG.defaultScopes,
+  })
+
+  const res = await fetch(API_CONFIG.oauthTokenUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: body.toString(),
+  })
+
+  if (!res.ok) {
+    const text = await res.text()
+    safeLog('error', '[OAuth] Token exchange failed:', res.status, text)
+    throw new Error(`OAuth token exchange failed: ${res.status}`)
+  }
+
+  const tokens = (await res.json()) as TokenResponse
+  setToken(tokens.access_token, tokens.expires_in, tokens.refresh_token)
+  return tokens
+}
+
+// PKCE sessions send no client_secret on refresh (the refresh token is the credential).
+// Client-secret sessions include the secret stored in sessionStorage under
+// 'wb_oauth_client_secret' — it is session-scoped and cleared on disconnect.
 export async function refreshAccessToken(clientId: string): Promise<void> {
   const rt = getRefreshToken()
   if (!rt) throw new Error('No refresh token available')
@@ -85,6 +128,8 @@ export async function refreshAccessToken(clientId: string): Promise<void> {
     client_id: clientId,
     refresh_token: rt,
   })
+  const clientSecret = sessionStorage.getItem('wb_oauth_client_secret')
+  if (clientSecret) body.set('client_secret', clientSecret)
 
   const res = await fetch(API_CONFIG.oauthTokenUrl, {
     method: 'POST',
