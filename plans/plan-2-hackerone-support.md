@@ -1,105 +1,97 @@
-# Plan 2: HackerOne API Support
+# Plan 2 — HackerOne Support
 
-## Prerequisites
+**Status:** Implemented after Plans 5, 1, 4
+**Prerequisites:** Plans 5 (canonical schema, PlatformId, adapter index) and 1 (platform registry, PLATFORMS map) must be complete.
 
-Plan 1 must be complete.
+## Purpose
 
-## Context
-
-HackerOne's customer API uses HTTP Basic Auth: the `Authorization` header is
-`Basic base64(identifier:token)` where `identifier` is the API identifier shown when
-creating a token, and `token` is the secret. Responses follow the JSON:API specification
-(`{ data: [...], links: {...} }` envelope). Base URL is `https://api.hackerone.com/v1`.
-
-The Vite dev proxy (`/api/hackerone/*` → `https://api.hackerone.com/v1`) is added in Plan 1.
+Add full HackerOne support: raw API types, endpoint helpers, canonical adapter,
+two report modules, and 50 synthetic fixtures.
 
 ---
 
-## Commits (2)
+## Commits
 
-### Commit A — HackerOne API endpoints and Worker proxy methods
+### Commit 1 — H1 API layer + canonical adapter
 
-**New file: `app/src/api/endpoints/hackerone.ts`**
+Files created:
+- `app/src/api/endpoints/hackerone.ts` — H1Program, H1Report types + h1GetPrograms, h1GetReports helpers
+- `app/src/platforms/adapters/hackerone.ts` — h1 → canonical adapter (replaces the stub in index.ts)
 
-Define normalized (JSON:API-unwrapped) types and fetch helpers:
+Files updated:
+- `app/src/platforms/adapters/index.ts` — wire hackerone adapter (remove stub error)
+- `app/src/reports/userModules/types.ts` — add h1_getPrograms, h1_getReports to FetchCtx
+- `app/src/reports/userModules/moduleWorker.ts` — add h1_ entries to FETCH_CTX
+- `app/src/reports/userModules/interpreter.ts` — add h1_ cases to handleApiProxy
+
+### Commit 2 — H1 fixtures + report modules
+
+Files created:
+- `app/src/reports/hackeroneReportsOverview/fixtures.ts` — 50 synthetic H1Report records
+- `app/src/reports/hackeroneReportsOverview/spec.ts` — HackerOne Reports Overview module
+- `app/src/reports/hackeroneActivity/spec.ts` — HackerOne Activity module
+
+Files updated:
+- `app/src/reports/registry.ts` — register both new modules
+
+---
+
+## HackerOne API Shape
+
+HackerOne uses JSON:API envelope (`data: [...], links: {...}`).
 
 ```typescript
-export interface H1Program {
-  id: string
-  handle: string   // slug used to filter reports
+interface H1Program {
+  id: string                // numeric string
+  handle: string
   name: string
+  state: 'open' | 'soft_launch' | 'closed' | 'suspended'
+  offers_bounties: boolean
+  submission_state: 'open' | 'closed'
+  website: string | null
+  profile_picture: string | null
 }
 
-export interface H1Report {
+interface H1Report {
   id: string
   title: string
-  state: 'new' | 'triaged' | 'resolved' | 'not-applicable' | 'informative' | 'duplicate' | 'spam'
-  severity_rating: 'none' | 'low' | 'medium' | 'high' | 'critical'
-  created_at: string   // ISO 8601
-  bounty_amount: number | null
-  program_handle: string
+  state: 'new' | 'pending-program-review' | 'triaged' | 'needs-more-info'
+        | 'resolved' | 'not-applicable' | 'informational' | 'duplicate'
+        | 'spam' | 'retesting'
+  severity: { rating: 'none' | 'low' | 'medium' | 'high' | 'critical'; score: number | null } | null
+  bounty_amount: string | null  // decimal string
+  currency: string
+  created_at: string            // ISO 8601
+  closed_at: string | null
+  weakness: { id: string; name: string } | null
+  relationships: {
+    program: { data: { id: string; type: 'program' } }
+  }
 }
-
-// GET /programs — unwrap JSON:API data[] to H1Program[]
-export async function h1GetPrograms(): Promise<H1Program[]>
-
-// GET /reports?filter[program][]=<handle>
-// Follows cursor pagination via links.next; unwraps data[] to H1Report[]
-export async function h1GetReports(programHandle?: string): Promise<H1Report[]>
 ```
 
-**`reports/userModules/interpreter.ts` — `handleApiProxy()`**: add:
+### Pagination (JSON:API)
+
 ```typescript
-case 'h1_getPrograms': return h1GetPrograms()
-case 'h1_getReports':  return h1GetReports(args[0] as string | undefined)
+// GET /v1/hackers/me/reports?page[number]=1&page[size]=100
+interface H1Response<T> {
+  data: T[]
+  links: { self: string; next?: string; prev?: string; first?: string; last?: string }
+}
 ```
-
-**`reports/userModules/moduleWorker.ts` — `FETCH_CTX`**: add:
-```typescript
-h1_getPrograms: () => apiProxy('h1_getPrograms', []),
-h1_getReports: (handle?: string) => apiProxy('h1_getReports', [handle]),
-```
-
-**`reports/userModules/types.ts` — `FetchCtx`**: add both H1 methods.
 
 ---
 
-### Commit B — HackerOne built-in report modules and fixtures
+## Canonical Adapter Notes
 
-**New fixture file: `reports/hackeroneReports/fixtures.ts`**
-
-50-record synthetic dataset matching `H1Report` shape:
-- 2 program handles (`acme-corp`, `beta-inc`)
-- Mix of all 7 states
-- Mix of all 5 severity ratings
-- Dates spanning 3 months (varied distribution)
-- ~30% with non-null `bounty_amount`
-
-**New specs:**
-
-`reports/hackeroneReportsOverview/spec.ts`:
-- `platform: 'hackerone'`, `category: 'snapshot'`
-- `customFetchData`: calls `ctx.h1_getReports()` (no handle = all programs)
-- `customTransform`: group by `state`, count; bar chart; summary cards for
-  total, triaged, resolved
-- `sampleFixtureData`: subset of fixture file
-
-`reports/hackeroneActivity/spec.ts`:
-- `platform: 'hackerone'`, `category: 'triage'`
-- `customFetchData`: calls `ctx.h1_getReports()`
-- `customTransform`: bucket by `created_at` week; stacked bar by `severity_rating`
-- `params.includeDateRange: true`, `params.includeInterval: true`
-- `sampleFixtureData`: full fixture file
-
-Register both specs in `reports/registry.ts → BUILT_IN_SPECS`.
+HackerOne severity `none` → canonical `informational`
+HackerOne `not-applicable` → canonical `invalid`
+HackerOne `informational` → canonical `invalid` (it means "not a valid issue")
+HackerOne `spam` → canonical `invalid`
 
 ---
 
-## Verification
+## Mock Data
 
-1. `npx tsc --noEmit` clean
-2. Mock mode: both H1 modules render correctly with fixture data (no real API needed)
-3. Platform filter "HackerOne" in ReportSelector shows only these 2 modules
-4. Live connection (real H1 credentials): verify DevTools shows
-   `Authorization: Basic <base64>` header on API requests
-5. Live: `h1GetReports()` returns a flat array (JSON:API envelope unwrapped correctly)
+50 synthetic H1Report records covering 2025–2026, 3 programs, realistic
+severity/state/bounty distributions. Used for Mock mode fixture loading.
