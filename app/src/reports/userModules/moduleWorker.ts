@@ -51,6 +51,8 @@ type AllowedMethod =
   | 'getPayouts'
   | 'h1_getPrograms'
   | 'h1_getReports'
+  | 'bc_getEngagements'
+  | 'bc_getEngagementSubmissions'
 
 const pendingApiRequests = new Map<string, {
   resolve: (value: unknown) => void
@@ -79,6 +81,9 @@ const FETCH_CTX = {
   // ── HackerOne raw (uncanonicalised) ────────────────────────────────────────
   h1_getPrograms: () => apiProxy('h1_getPrograms', []),
   h1_getReports: () => apiProxy('h1_getReports', []),
+  // ── Bugcrowd raw (uncanonicalised) ─────────────────────────────────────────
+  bc_getEngagements: () => apiProxy('bc_getEngagements', []),
+  bc_getEngagementSubmissions: (id: string) => apiProxy('bc_getEngagementSubmissions', [id]),
 }
 
 // ---------------------------------------------------------------------------

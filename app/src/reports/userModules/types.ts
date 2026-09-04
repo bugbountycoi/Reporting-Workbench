@@ -126,6 +126,10 @@ export interface FetchCtx {
   // ── HackerOne raw (uncanonicalised) ──────────────────────────────────────
   h1_getPrograms: () => Promise<unknown[]>
   h1_getReports: () => Promise<unknown[]>
+
+  // ── Bugcrowd raw (uncanonicalised) ────────────────────────────────────────
+  bc_getEngagements: () => Promise<unknown[]>
+  bc_getEngagementSubmissions: (engagementId: string) => Promise<unknown[]>
 }
 
 // Context object passed to customTransform(raw, params, programs, ctx)

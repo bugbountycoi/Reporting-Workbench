@@ -9,6 +9,7 @@ import { declarativeTransform } from './transform'
 import { getPrograms, getProgramSubmissions, getProgramDetail } from '../../api/endpoints/programs'
 import { getAllPayouts } from '../../api/endpoints/payouts'
 import { h1GetPrograms, h1GetReports } from '../../api/endpoints/hackerone'
+import { bcGetEngagements, bcGetEngagementSubmissions } from '../../api/endpoints/bugcrowd'
 import { adaptPrograms, adaptSubmissions, adaptPayouts } from '../../platforms/adapters'
 import { getActivePlatform } from '../../platforms/store'
 import { INTERVAL_OPTIONS } from '../../utils/intervals'
@@ -106,6 +107,10 @@ async function handleApiProxy(method: string, args: unknown[]): Promise<unknown>
         const raw = await h1GetPrograms()
         return adaptPrograms(platform, raw)
       }
+      if (platform === 'bugcrowd') {
+        const raw = await bcGetEngagements()
+        return adaptPrograms(platform, raw)
+      }
       const raw = await getPrograms()
       return adaptPrograms(platform, raw)
     }
@@ -116,6 +121,10 @@ async function handleApiProxy(method: string, args: unknown[]): Promise<unknown>
         const filtered = raw.filter((r) => r.relationships.program.data.id === programId)
         return adaptSubmissions(platform, filtered, programId)
       }
+      if (platform === 'bugcrowd') {
+        const raw = await bcGetEngagementSubmissions(programId)
+        return adaptSubmissions(platform, raw, programId)
+      }
       const raw = await getProgramSubmissions(programId)
       return adaptSubmissions(platform, raw, programId)
     }
@@ -123,6 +132,9 @@ async function handleApiProxy(method: string, args: unknown[]): Promise<unknown>
       if (platform === 'hackerone') {
         const raw = await h1GetReports()
         return adaptPayouts(platform, raw)
+      }
+      if (platform === 'bugcrowd') {
+        return [] // Bugcrowd payout data not exposed via submissions endpoint
       }
       const raw = await getAllPayouts()
       return adaptPayouts(platform, raw)
@@ -132,6 +144,11 @@ async function handleApiProxy(method: string, args: unknown[]): Promise<unknown>
       return h1GetPrograms()
     case 'h1_getReports':
       return h1GetReports()
+    // ── Bugcrowd raw (uncanonicalised) ─────────────────────────────────────
+    case 'bc_getEngagements':
+      return bcGetEngagements()
+    case 'bc_getEngagementSubmissions':
+      return bcGetEngagementSubmissions(args[0] as string)
     default:
       throw new Error(`Custom module called disallowed API method: ${method}`)
   }

@@ -3,8 +3,8 @@ import type { CanonicalProgram, CanonicalSubmission, CanonicalPayout } from '../
 import { adaptPrograms as igAdaptPrograms, adaptSubmissions as igAdaptSubmissions, adaptPayouts as igAdaptPayouts } from './intigriti'
 import { adaptH1Programs, adaptH1Submissions, adaptH1Payouts } from './hackerone'
 import type { H1Program, H1Report } from '../../api/endpoints/hackerone'
-
-// Bugcrowd adapter wired in Plan 3.
+import { adaptBcEngagements, adaptBcSubmissions, adaptBcPayouts } from './bugcrowd'
+import type { BugcrowdEngagement, BugcrowdSubmission } from '../../api/endpoints/bugcrowd'
 
 export function adaptPrograms(platform: PlatformId, raw: unknown[]): CanonicalProgram[] {
   switch (platform) {
@@ -13,7 +13,7 @@ export function adaptPrograms(platform: PlatformId, raw: unknown[]): CanonicalPr
     case 'hackerone':
       return adaptH1Programs(raw as H1Program[])
     case 'bugcrowd':
-      throw new Error('Bugcrowd adapter not yet implemented')
+      return adaptBcEngagements(raw as BugcrowdEngagement[])
   }
 }
 
@@ -24,7 +24,7 @@ export function adaptSubmissions(platform: PlatformId, raw: unknown[], programId
     case 'hackerone':
       return adaptH1Submissions(raw as H1Report[])
     case 'bugcrowd':
-      throw new Error('Bugcrowd adapter not yet implemented')
+      return adaptBcSubmissions(raw as BugcrowdSubmission[])
   }
 }
 
@@ -35,6 +35,6 @@ export function adaptPayouts(platform: PlatformId, raw: unknown[]): CanonicalPay
     case 'hackerone':
       return adaptH1Payouts(raw as H1Report[])
     case 'bugcrowd':
-      throw new Error('Bugcrowd adapter not yet implemented')
+      return adaptBcPayouts(raw as BugcrowdSubmission[])
   }
 }
