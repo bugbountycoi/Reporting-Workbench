@@ -10,6 +10,8 @@ import { submissionStatusSnapshotSpec } from './submissionStatusSnapshot/spec'
 import { rawApiExplorerSpec } from './rawApiExplorer/spec'
 import { hackeroneReportsOverviewSpec } from './hackeroneReportsOverview/spec'
 import { hackeroneActivitySpec } from './hackeroneActivity/spec'
+import { bugcrowdEngagementOverviewSpec } from './bugcrowdEngagementOverview/spec'
+import { bugcrowdSubmissionsSpec } from './bugcrowdSubmissions/spec'
 
 const BUILT_IN_SPECS: UserModuleSpec[] = [
   dailyTriageMovementSpec,
@@ -19,6 +21,8 @@ const BUILT_IN_SPECS: UserModuleSpec[] = [
   rawApiExplorerSpec,
   hackeroneReportsOverviewSpec,
   hackeroneActivitySpec,
+  bugcrowdEngagementOverviewSpec,
+  bugcrowdSubmissionsSpec,
 ]
 
 function buildModules(ctx: AppContext): ReportModule[] {
