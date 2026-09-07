@@ -4,6 +4,7 @@ import { specToModule } from './userModules/interpreter'
 import { loadUserModuleSpecs } from './userModules/store'
 
 import { dailyTriageMovementSpec } from './dailyTriageMovement/spec'
+import { dailyTriageThroughputSpec } from './dailyTriageThroughput/spec'
 import { weeklyTriageSummarySpec } from './weeklyTriageSummary/spec'
 import { bountyBudgetOverviewSpec } from './bountyBudgetOverview/spec'
 import { submissionStatusSnapshotSpec } from './submissionStatusSnapshot/spec'
@@ -15,6 +16,7 @@ import { bugcrowdSubmissionsSpec } from './bugcrowdSubmissions/spec'
 
 const BUILT_IN_SPECS: UserModuleSpec[] = [
   dailyTriageMovementSpec,
+  dailyTriageThroughputSpec,
   weeklyTriageSummarySpec,
   bountyBudgetOverviewSpec,
   submissionStatusSnapshotSpec,
