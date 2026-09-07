@@ -14,6 +14,8 @@ export function adaptPrograms(platform: PlatformId, raw: unknown[]): CanonicalPr
       return adaptH1Programs(raw as H1Program[])
     case 'bugcrowd':
       return adaptBcEngagements(raw as BugcrowdEngagement[])
+    default:
+      return []
   }
 }
 
@@ -25,6 +27,8 @@ export function adaptSubmissions(platform: PlatformId, raw: unknown[], programId
       return adaptH1Submissions(raw as H1Report[])
     case 'bugcrowd':
       return adaptBcSubmissions(raw as BugcrowdSubmission[])
+    default:
+      return []
   }
 }
 
@@ -36,5 +40,7 @@ export function adaptPayouts(platform: PlatformId, raw: unknown[]): CanonicalPay
       return adaptH1Payouts(raw as H1Report[])
     case 'bugcrowd':
       return adaptBcPayouts(raw as BugcrowdSubmission[])
+    default:
+      return []
   }
 }

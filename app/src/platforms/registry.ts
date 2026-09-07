@@ -57,6 +57,19 @@ export const PLATFORMS: Record<PlatformId, PlatformConfig> = {
     oauthEnabled: false,
     docsUrl: 'https://docs.bugcrowd.com/api/getting-started/',
   },
+  // Display-only entry — not a real API platform; used for badge/filter rendering only
+  universal: {
+    id: 'universal',
+    name: 'Universal',
+    apiBaseUrl: '',
+    proxyPrefix: '',
+    apiPathPrefix: '',
+    authScheme: 'bearer',
+    acceptHeader: null,
+    badgeColor: '#0ea5e9',
+    oauthEnabled: false,
+    docsUrl: '',
+  },
 }
 
 export function getPlatformConfig(id: PlatformId): PlatformConfig {

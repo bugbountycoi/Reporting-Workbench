@@ -11,7 +11,7 @@ export const universalVolumetrendSpec: UserModuleSpec = {
   category: 'triage',
   author: 'Reporting Workbench',
   version: '1.0.0',
-  // platform intentionally omitted — this module runs on any platform
+  platform: 'universal',
 
   dataSource: 'submissions',
   params: { includePrograms: true, includeDateRange: true, includeInterval: true },

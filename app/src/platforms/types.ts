@@ -1,1 +1,1 @@
-export type PlatformId = 'intigriti' | 'hackerone' | 'bugcrowd'
+export type PlatformId = 'intigriti' | 'hackerone' | 'bugcrowd' | 'universal'

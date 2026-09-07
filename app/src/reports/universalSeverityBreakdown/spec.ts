@@ -10,7 +10,7 @@ export const universalSeverityBreakdownSpec: UserModuleSpec = {
   category: 'snapshot',
   author: 'Reporting Workbench',
   version: '1.0.0',
-  // platform intentionally omitted — this module runs on any platform
+  platform: 'universal',
 
   dataSource: 'submissions',
   params: { includePrograms: true, includeDateRange: true, includeInterval: false },

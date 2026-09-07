@@ -416,7 +416,7 @@ export function ApiKeyPanel({ onConnected, isConnected, programs, onClose }: Pro
           <div>
             <p className="text-xs font-semibold text-gray-700 mb-1.5 uppercase tracking-wide">Platform</p>
             <div className="flex gap-2 flex-wrap">
-              {(Object.keys(PLATFORMS) as PlatformId[]).map((p) => {
+              {(Object.keys(PLATFORMS).filter((p) => p !== 'universal') as PlatformId[]).map((p) => {
                 const cfg = PLATFORMS[p]
                 const active = selectedPlatform === p
                 return (

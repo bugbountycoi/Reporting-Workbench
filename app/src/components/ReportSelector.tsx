@@ -79,7 +79,7 @@ export function ReportSelector({
     for (const r of reports) {
       for (const p of modulePlatforms(r)) present.add(p)
     }
-    const order: PlatformId[] = ['intigriti', 'hackerone', 'bugcrowd']
+    const order: PlatformId[] = ['universal', 'intigriti', 'hackerone', 'bugcrowd']
     return order.filter((p) => present.has(p))
   }, [reports])
 
@@ -114,7 +114,10 @@ export function ReportSelector({
       if (!activeCategories.has(r.category)) return false
       if (activePlatform === 'all') return true
       const platforms = modulePlatforms(r)
-      return platforms.length === 0 || platforms.includes(activePlatform)
+      // "Universal" filter: show only cross-platform modules
+      if (activePlatform === 'universal') return platforms.includes('universal')
+      // Platform-specific filter: show that platform's modules + universal ones
+      return platforms.includes(activePlatform) || platforms.includes('universal') || platforms.length === 0
     })
   }, [reports, activeCategories, activePlatform])
 
