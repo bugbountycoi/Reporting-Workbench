@@ -13,16 +13,28 @@ import { hackeroneReportsOverviewSpec } from './hackeroneReportsOverview/spec'
 import { hackeroneActivitySpec } from './hackeroneActivity/spec'
 import { bugcrowdEngagementOverviewSpec } from './bugcrowdEngagementOverview/spec'
 import { bugcrowdSubmissionsSpec } from './bugcrowdSubmissions/spec'
+import { universalSeverityBreakdownSpec } from './universalSeverityBreakdown/spec'
+import { universalVolumetrendSpec } from './universalVolumetrendByMonth/spec'
+import { universalResolutionTimeSpec } from './universalResolutionTime/spec'
+import { universalResearcherLeaderboardSpec } from './universalResearcherLeaderboard/spec'
 
 const BUILT_IN_SPECS: UserModuleSpec[] = [
+  // Universal (cross-platform)
+  universalSeverityBreakdownSpec,
+  universalVolumetrendSpec,
+  universalResolutionTimeSpec,
+  universalResearcherLeaderboardSpec,
+  // Intigriti
   dailyTriageMovementSpec,
   dailyTriageThroughputSpec,
   weeklyTriageSummarySpec,
   bountyBudgetOverviewSpec,
   submissionStatusSnapshotSpec,
   rawApiExplorerSpec,
+  // HackerOne
   hackeroneReportsOverviewSpec,
   hackeroneActivitySpec,
+  // Bugcrowd
   bugcrowdEngagementOverviewSpec,
   bugcrowdSubmissionsSpec,
 ]
