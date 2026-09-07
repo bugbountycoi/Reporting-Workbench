@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "id": "dailyTriageMovement",
+  "title": "Intigriti Daily Triage Movement",
+  "description": "Shows submission flow in and out of triage for the selected program, date range, and time interval.",
+  "category": "triage",
+  "author": "Reporting Workbench",
+  "version": "1.0.0",
+  "platform": "intigriti",
+  "dataSource": "submissions",
+  "params": {
+    "includePrograms": true,
+    "includeDateRange": true,
+    "includeInterval": true
+  },
+  "groupBy": "time.day",
+  "metrics": [],
+  "sortBy": {
+    "key": "period",
+    "dir": "asc"
+  },
+  "summaryCards": [],
+  "chartType": "stackedBar",
+  "chartXLabel": "Period",
+  "chartYLabel": "Submissions",
+  "allowedChartTypes": [
+    "stackedBar",
+    "bar",
+    "line"
+  ],
+  "series": [
+    {
+      "metricKey": "new",
+      "color": "var(--brand-blue)"
+    },
+    {
+      "metricKey": "forwarded",
+      "color": "var(--brand-green)"
+    },
+    {
+      "metricKey": "closed",
+      "color": "var(--brand-gray-mid)"
+    },
+    {
+      "metricKey": "duplicate",
+      "color": "var(--brand-gold)"
+    }
+  ],
+  "tableColumns": [
+    {
+      "key": "period",
+      "label": "Period"
+    },
+    {
+      "key": "new",
+      "label": "New"
+    },
+    {
+      "key": "forwarded",
+      "label": "Forwarded"
+    },
+    {
+      "key": "closed",
+      "label": "Closed"
+    },
+    {
+      "key": "duplicate",
+      "label": "Duplicate"
+    },
+    {
+      "key": "netChange",
+      "label": "Net Change"
+    }
+  ],
+  "exportFilename": "daily-triage-movement",
+  "customFetchData": "\n    const ids = params.programIds || [];\n    if (ids.length === 0) throw new Error('At least one program is required');\n    const results = await Promise.all(ids.map(function(id) { return ctx.getProgramSubmissions(id); }));\n    return results.flat();\n  ",
+  "customTransform": "\n    const submissions = raw;\n    const startDate = params.startDate || '2025-07-11';\n    const endDate = params.endDate || '2025-07-28';\n    const interval = params.interval || 'day';\n    const programIds = params.programIds || [];\n    const viewMode = params.viewMode || 'combine';\n    const { bucketKey, allBuckets, COMPARE_COLORS } = ctx;\n\n    const filtered = programIds.length > 0\n      ? submissions.filter(function(s) { return programIds.includes(s.originators.programId || ''); })\n      : submissions;\n\n    function buildRows(subs, start, end, ivl) {\n      const buckets = allBuckets(start, end, ivl);\n      const byBucket = {};\n      for (const s of subs) {\n        const k = bucketKey(s.createdAt, ivl);\n        if (!byBucket[k]) byBucket[k] = [];\n        byBucket[k].push(s);\n      }\n      return buckets.map(function(bucket) {\n        const inBucket = byBucket[bucket] || [];\n        const newCount = inBucket.length;\n        const forwardedCount = inBucket.filter(function(s) { return s.state.status.value.toLowerCase().includes('forwarded'); }).length;\n        const duplicateCount = inBucket.filter(function(s) { return (s.state.closeReason && s.state.closeReason.value.toLowerCase() === 'duplicate'); }).length;\n        const closedCount = inBucket.filter(function(s) { return s.state.status.value.toLowerCase() === 'closed' && !(s.state.closeReason && s.state.closeReason.value.toLowerCase().includes('duplicate')); }).length;\n        return { period: bucket, new: newCount, forwarded: forwardedCount, closed: closedCount, duplicate: duplicateCount, netChange: newCount - closedCount - duplicateCount };\n      });\n    }\n\n    const rows = buildRows(filtered, startDate, endDate, interval);\n    const totalNew = rows.reduce(function(s, r) { return s + r.new; }, 0);\n    const totalClosed = rows.reduce(function(s, r) { return s + r.closed; }, 0);\n    const netChange = rows.reduce(function(s, r) { return s + r.netChange; }, 0);\n\n    const summaryCards = [\n      { label: 'New Submissions', value: totalNew, trend: 'neutral' },\n      { label: 'Forwarded to Customer', value: rows.reduce(function(s, r) { return s + r.forwarded; }, 0), trend: 'neutral' },\n      { label: 'Closed / Rejected', value: totalClosed, trend: 'neutral' },\n      { label: 'Net Queue Change', value: netChange > 0 ? '+' + netChange : netChange, trend: netChange > 0 ? 'up' : netChange < 0 ? 'down' : 'neutral' },\n    ];\n\n    if (viewMode === 'compare' && programIds.length > 1) {\n      const programList = params.programs || [];\n      const buckets = allBuckets(startDate, endDate, interval);\n      const byBucketByProg = {};\n      for (const s of filtered) {\n        const k = bucketKey(s.createdAt, interval);\n        const pid = s.originators.programId || '';\n        if (!byBucketByProg[k]) byBucketByProg[k] = {};\n        byBucketByProg[k][pid] = (byBucketByProg[k][pid] || 0) + 1;\n      }\n      const compareData = buckets.map(function(bucket) {\n        const row = { period: bucket };\n        for (const id of programIds) row[id] = (byBucketByProg[bucket] && byBucketByProg[bucket][id]) || 0;\n        return row;\n      });\n      const dynamicChartConfig = {\n        type: 'bar', xKey: 'period', xLabel: 'Period', yLabel: 'New Submissions',\n        allowedChartTypes: programIds.length <= 5 ? ['bar', 'stackedBar', 'line'] : ['bar', 'stackedBar'],\n        series: programIds.map(function(id, i) { return { key: id, label: (programList.find(function(p) { return p.id === id; }) || {}).name || id, color: COMPARE_COLORS[i % COMPARE_COLORS.length] }; }),\n      };\n      return { rows: rows, chartData: compareData, summaryCards: summaryCards, chartConfig: dynamicChartConfig, rawData: raw };\n    }\n\n    return { rows: rows, chartData: rows, summaryCards: summaryCards, rawData: raw };\n  ",
+  "customSummaryFormatter": "\n    const cards = data.summaryCards;\n    return 'Received ' + cards[0].value + ' submissions. Net queue change: ' + cards[3].value + '.';\n  ",
+  "sampleFixtureData": null,
+  "sampleFixtureParams": {
+    "programIds": [
+      "prog-alpha-001"
+    ],
+    "startDate": "2025-07-11",
+    "endDate": "2025-07-24",
+    "interval": "day"
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 1,
+  "id": "rawApiExplorer",
+  "title": "Intigriti Raw API Explorer",
+  "description": "Inspect raw API responses from any read-only endpoint. Useful for understanding available data.",
+  "category": "developer",
+  "author": "Reporting Workbench",
+  "version": "1.0.0",
+  "platform": "intigriti",
+  "dataSource": "programs",
+  "params": {
+    "includePrograms": false,
+    "includeDateRange": false,
+    "includeInterval": false
+  },
+  "groupBy": "status",
+  "metrics": [],
+  "sortBy": {
+    "key": "endpoint",
+    "dir": "asc"
+  },
+  "summaryCards": [],
+  "chartType": "none",
+  "chartXLabel": "",
+  "chartYLabel": "",
+  "allowedChartTypes": [],
+  "series": [],
+  "tableColumns": [],
+  "exportFilename": "raw-api-response",
+  "customParamFields": [
+    {
+      "key": "endpoint",
+      "label": "Endpoint",
+      "type": "select",
+      "required": true,
+      "options": [
+        {
+          "value": "/programs",
+          "label": "GET /v2/programs — List all programs"
+        },
+        {
+          "value": "/submissions",
+          "label": "GET /v2/submissions — All company submissions"
+        },
+        {
+          "value": "/payouts",
+          "label": "GET /v2/payouts — All company payouts"
+        },
+        {
+          "value": "/groups",
+          "label": "GET /v2/groups — All groups"
+        },
+        {
+          "value": "/company-assets",
+          "label": "GET /v2/company-assets — Company assets"
+        },
+        {
+          "value": "/submission-possible-types",
+          "label": "GET /v2/submission-possible-types — Submission type enum"
+        },
+        {
+          "value": "/reward-system/reward-requests",
+          "label": "GET /v2/reward-system/reward-requests — Reward requests"
+        },
+        {
+          "value": "/reward-system/budget",
+          "label": "GET /v2/reward-system/budget — Reward budget"
+        },
+        {
+          "value": "/iplookup",
+          "label": "GET /v2/iplookup — IP lookup (your IP)"
+        }
+      ],
+      "defaultValue": "/programs"
+    }
+  ],
+  "customFetchData": "\n    const endpoint = (params.endpoint || '/programs');\n    const start = Date.now();\n    const data = await ctx.apiGet(endpoint);\n    const duration = Date.now() - start;\n    return { data: data, status: 200, duration: duration, endpoint: '/v2' + endpoint };\n  ",
+  "customTransform": "\n    const result = raw;\n    const data = result.data;\n    let rows = [];\n    if (Array.isArray(data)) {\n      rows = data.slice(0, 100);\n    } else if (data && typeof data === 'object') {\n      rows = [data];\n    }\n    return {\n      rows: rows,\n      chartData: [],\n      summaryCards: [\n        { label: 'Endpoint', value: result.endpoint },\n        { label: 'HTTP Status', value: result.status },\n        { label: 'Response Time', value: result.duration + 'ms' },\n        { label: 'Records', value: Array.isArray(data) ? data.length : 1 },\n      ],\n      rawData: data,\n    };\n  ",
+  "customSummaryFormatter": "\n    const [ep, status, duration, records] = data.summaryCards;\n    return ep.value + ' → ' + status.value + ' in ' + duration.value + '. ' + records.value + ' record(s) returned.';\n  ",
+  "sampleFixtureData": null,
+  "sampleFixtureParams": {
+    "endpoint": "/programs"
+  }
+}

@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 1,
+  "id": "hackerone-reports-overview",
+  "title": "HackerOne Reports Overview",
+  "description": "Summary of HackerOne vulnerability reports by severity and state, with bounty totals.",
+  "category": "snapshot",
+  "author": "Reporting Workbench",
+  "version": "1.0.0",
+  "platform": "hackerone",
+  "dataSource": "submissions",
+  "params": {
+    "includePrograms": false,
+    "includeDateRange": true,
+    "includeInterval": true
+  },
+  "groupBy": "severity",
+  "metrics": [
+    {
+      "key": "count",
+      "label": "Reports",
+      "aggregation": "count"
+    },
+    {
+      "key": "totalBounty",
+      "label": "Total Bounty (USD)",
+      "aggregation": "sum.bounty"
+    }
+  ],
+  "sortBy": {
+    "key": "count",
+    "dir": "desc"
+  },
+  "summaryCards": [
+    {
+      "label": "Total Reports",
+      "value": "total.count"
+    },
+    {
+      "label": "Total Bounty Paid",
+      "value": "total.bounty"
+    },
+    {
+      "label": "% Accepted",
+      "value": "pct.accepted"
+    },
+    {
+      "label": "Unique Researchers",
+      "value": "countDistinct.researcher"
+    }
+  ],
+  "chartType": "bar",
+  "chartXLabel": "Severity",
+  "chartYLabel": "Count",
+  "allowedChartTypes": [
+    "bar",
+    "stackedBar"
+  ],
+  "series": [
+    {
+      "metricKey": "count",
+      "color": "#e8563a"
+    }
+  ],
+  "tableColumns": [
+    {
+      "key": "severity",
+      "label": "Severity"
+    },
+    {
+      "key": "count",
+      "label": "Reports"
+    },
+    {
+      "key": "totalBounty",
+      "label": "Bounty Paid (USD)"
+    }
+  ],
+  "exportFilename": "h1-reports-overview",
+  "customFetchData": "\n    const reports = await ctx.h1_getReports()\n    const start = params.startDate ? new Date(params.startDate).getTime() : 0\n    const end = params.endDate ? new Date(params.endDate).getTime() : Infinity\n    return reports.filter(r => {\n      const ts = new Date(r.created_at).getTime()\n      return ts >= start && ts <= end\n    })\n  ",
+  "customTransform": "\n    const severityOrder = ['critical','high','medium','low','none']\n    const groups = {}\n    for (const r of raw) {\n      const sev = r.severity?.rating ?? 'none'\n      if (!groups[sev]) groups[sev] = { severity: sev, count: 0, totalBounty: 0 }\n      groups[sev].count++\n      if (r.bounty_amount) groups[sev].totalBounty += parseFloat(r.bounty_amount)\n    }\n    const rows = severityOrder.filter(s => groups[s]).map(s => ({\n      ...groups[s],\n      totalBounty: Math.round(groups[s].totalBounty * 100) / 100,\n    }))\n    const totalCount = raw.length\n    const totalBounty = rows.reduce((s, r) => s + r.totalBounty, 0)\n    const resolved = raw.filter(r => r.state === 'resolved').length\n    const researchers = new Set(raw.map(r => r.reporter?.username).filter(Boolean)).size\n    return {\n      rows,\n      chartData: rows.map(r => ({ label: r.severity, count: r.count })),\n      summaryCards: [\n        { label: 'Total Reports', value: totalCount },\n        { label: 'Total Bounty Paid', value: '$' + totalBounty.toLocaleString() },\n        { label: '% Accepted', value: totalCount > 0 ? Math.round(resolved / totalCount * 100) + '%' : '0%' },\n        { label: 'Unique Researchers', value: researchers },\n      ],\n    }\n  ",
+  "sampleFixtureData": null,
+  "sampleFixtureParams": {
+    "startDate": "2025-01-01",
+    "endDate": "2026-12-31",
+    "interval": "month"
+  }
+}

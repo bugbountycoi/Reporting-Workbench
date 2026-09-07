@@ -1,0 +1,92 @@
+{
+  "schemaVersion": 1,
+  "id": "dailyTriageThroughput",
+  "title": "Intigriti Daily Triage Throughput",
+  "description": "Shows the total number of submissions sitting in each queue (Triage, Pending, Accepted) per day — a running inventory view rather than a daily-inflow view.",
+  "category": "triage",
+  "author": "Reporting Workbench",
+  "version": "1.0.0",
+  "platform": "intigriti",
+  "dataSource": "submissions",
+  "params": {
+    "includePrograms": true,
+    "includeDateRange": true,
+    "includeInterval": true
+  },
+  "groupBy": "time.day",
+  "metrics": [],
+  "sortBy": {
+    "key": "period",
+    "dir": "asc"
+  },
+  "summaryCards": [],
+  "chartType": "line",
+  "chartXLabel": "Period",
+  "chartYLabel": "Submissions in Queue",
+  "allowedChartTypes": [
+    "line",
+    "stackedBar",
+    "bar"
+  ],
+  "series": [
+    {
+      "metricKey": "triage",
+      "color": "var(--brand-blue)"
+    },
+    {
+      "metricKey": "pending",
+      "color": "var(--brand-gold)"
+    },
+    {
+      "metricKey": "accepted",
+      "color": "var(--brand-green)"
+    }
+  ],
+  "tableColumns": [
+    {
+      "key": "period",
+      "label": "Period"
+    },
+    {
+      "key": "triage",
+      "label": "Triage"
+    },
+    {
+      "key": "deltaTriage",
+      "label": "Δ Triage"
+    },
+    {
+      "key": "pending",
+      "label": "Pending"
+    },
+    {
+      "key": "deltaPending",
+      "label": "Δ Pending"
+    },
+    {
+      "key": "accepted",
+      "label": "Accepted"
+    },
+    {
+      "key": "deltaAccepted",
+      "label": "Δ Accepted"
+    },
+    {
+      "key": "totalOpen",
+      "label": "Total Open"
+    }
+  ],
+  "exportFilename": "daily-triage-throughput",
+  "customFetchData": "\n    var ids = params.programIds || [];\n    if (ids.length === 0) throw new Error('At least one program is required');\n    var results = await Promise.all(ids.map(function(id) { return ctx.getProgramSubmissions(id); }));\n    return results.flat();\n  ",
+  "customTransform": "\n    var submissions = raw;\n    var startDate = params.startDate || '2024-01-01';\n    var endDate   = params.endDate   || '2026-09-01';\n    var interval  = params.interval  || 'month';\n    var programIds = params.programIds || [];\n    var bucketKey  = ctx.bucketKey;\n    var allBuckets = ctx.allBuckets;\n\n    // Filter to selected programs\n    var filtered = programIds.length > 0\n      ? submissions.filter(function(s) { return programIds.indexOf(s.originators.programId || '') !== -1; })\n      : submissions;\n\n    // Normalise status string into one of our three queue buckets.\n    // Intigriti status values: 'Triage', 'Accepted', 'Forwarded to customer', 'Closed', etc.\n    function queueOf(status) {\n      var v = (status || '').toLowerCase();\n      if (v === 'triage')                      return 'triage';\n      if (v === 'accepted')                    return 'accepted';\n      if (v.indexOf('forwarded') !== -1)       return 'pending';\n      return null; // closed / resolved / not-applicable — leaves all queues\n    }\n\n    // For each submission we approximate which queue it occupied on a given day\n    // using the only two timestamps available (createdAt and lastUpdatedAt).\n    //\n    // Model:\n    //   - A submission enters the triage queue at createdAt.\n    //   - If it is still \"Triage\" today, it has been in triage from createdAt → ∞.\n    //   - If it moved to Accepted/Pending, lastUpdatedAt approximates the transition date.\n    //     Before that date it was in triage; from that date on it is in the new queue.\n    //   - If it is Closed, lastUpdatedAt is when it left all queues.\n    //     Before that date it was in triage (best approximation without full history).\n    //\n    // Limitation: multi-hop transitions (Triage → Accepted → Closed) cannot be\n    // reconstructed from two timestamps alone. The model treats every submission as\n    // having at most one intermediate state change.\n\n    var MS_PER_DAY = 86400000;\n\n    function endOfDay(dateStr) {\n      return new Date(dateStr).getTime() + MS_PER_DAY - 1;\n    }\n\n    function bucketEndOfDay(bucketLabel, ivl) {\n      // bucketKey labels are ISO date strings (day/week/month start); add one period.\n      var d = new Date(bucketLabel);\n      if (ivl === 'week') d.setDate(d.getDate() + 6);\n      else if (ivl === 'month') d.setMonth(d.getMonth() + 1, 0); // last day of month\n      return d.getTime() + MS_PER_DAY - 1;\n    }\n\n    var buckets = allBuckets(startDate, endDate, interval);\n\n    var rows = buckets.map(function(bucket) {\n      var eod = bucketEndOfDay(bucket, interval);\n\n      var triageCount   = 0;\n      var pendingCount  = 0;\n      var acceptedCount = 0;\n\n      for (var i = 0; i < filtered.length; i++) {\n        var s = filtered[i];\n        var created = s.createdAt * (s.createdAt < 1e12 ? 1000 : 1); // handle s vs ms\n        if (created > eod) continue; // not yet submitted on this day\n\n        var updated = s.lastUpdatedAt\n          ? (s.lastUpdatedAt * (s.lastUpdatedAt < 1e12 ? 1000 : 1))\n          : Infinity;\n\n        var currentQueue = queueOf(s.state.status.value);\n\n        if (currentQueue === 'triage') {\n          // Still in triage today — has been here since creation\n          triageCount++;\n        } else if (currentQueue === 'accepted' || currentQueue === 'pending') {\n          // Transitioned at approx. lastUpdatedAt\n          if (updated <= eod) {\n            if (currentQueue === 'accepted') acceptedCount++;\n            else                             pendingCount++;\n          } else {\n            // Not yet transitioned as of this day — still in triage\n            triageCount++;\n          }\n        } else {\n          // Closed / resolved — left all queues at lastUpdatedAt\n          if (updated > eod) {\n            // Was still in triage on this day (not yet closed)\n            triageCount++;\n          }\n          // After closing, the submission no longer occupies any queue\n        }\n      }\n\n      return {\n        period:        bucket,\n        triage:        triageCount,\n        deltaTriage:   0,\n        pending:       pendingCount,\n        deltaPending:  0,\n        accepted:      acceptedCount,\n        deltaAccepted: 0,\n        totalOpen:     triageCount + pendingCount + acceptedCount,\n      };\n    });\n\n    // Compute deltas (change vs. previous day)\n    for (var j = 1; j < rows.length; j++) {\n      rows[j].deltaTriage   = rows[j].triage   - rows[j - 1].triage;\n      rows[j].deltaPending  = rows[j].pending  - rows[j - 1].pending;\n      rows[j].deltaAccepted = rows[j].accepted - rows[j - 1].accepted;\n    }\n\n    // Format delta values with leading + for positive numbers\n    var tableRows = rows.map(function(r) {\n      return Object.assign({}, r, {\n        deltaTriage:   r.deltaTriage   > 0 ? '+' + r.deltaTriage   : r.deltaTriage,\n        deltaPending:  r.deltaPending  > 0 ? '+' + r.deltaPending  : r.deltaPending,\n        deltaAccepted: r.deltaAccepted > 0 ? '+' + r.deltaAccepted : r.deltaAccepted,\n      });\n    });\n\n    // Summary: snapshot of latest bucket (most recent day in range)\n    var last = rows[rows.length - 1] || { triage: 0, pending: 0, accepted: 0, totalOpen: 0 };\n    var prev = rows.length > 1 ? rows[rows.length - 2] : null;\n\n    var triageTrend   = prev ? (last.triage   > prev.triage   ? 'up' : last.triage   < prev.triage   ? 'down' : 'neutral') : 'neutral';\n    var pendingTrend  = prev ? (last.pending  > prev.pending  ? 'up' : last.pending  < prev.pending  ? 'down' : 'neutral') : 'neutral';\n    var acceptedTrend = prev ? (last.accepted > prev.accepted ? 'up' : last.accepted < prev.accepted ? 'down' : 'neutral') : 'neutral';\n\n    var summaryCards = [\n      { label: 'In Triage Queue',   value: last.triage,   trend: triageTrend },\n      { label: 'In Pending Queue',  value: last.pending,  trend: pendingTrend },\n      { label: 'In Accepted Queue', value: last.accepted, trend: acceptedTrend },\n      { label: 'Total Open',        value: last.totalOpen, trend: 'neutral' },\n    ];\n\n    return {\n      rows:         tableRows,\n      chartData:    rows.map(function(r) { return { label: r.period, triage: r.triage, pending: r.pending, accepted: r.accepted }; }),\n      summaryCards: summaryCards,\n      rawData:      raw,\n    };\n  ",
+  "customSummaryFormatter": "\n    var cards = data.summaryCards;\n    return 'Triage: ' + cards[0].value + '  |  Pending: ' + cards[1].value + '  |  Accepted: ' + cards[2].value + '  |  Total open: ' + cards[3].value + '.';\n  ",
+  "sampleFixtureData": null,
+  "sampleFixtureParams": {
+    "programIds": [
+      "prog-alpha-001"
+    ],
+    "startDate": "2024-01-01",
+    "endDate": "2026-09-01",
+    "interval": "month"
+  }
+}

@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "id": "bugcrowd-engagement-overview",
+  "title": "Bugcrowd Engagement Summary",
+  "description": "Overview of your Bugcrowd engagements showing submission counts and status.",
+  "category": "snapshot",
+  "author": "Reporting Workbench",
+  "version": "1.0.0",
+  "platform": "bugcrowd",
+  "dataSource": "programs",
+  "params": {
+    "includePrograms": false,
+    "includeDateRange": false,
+    "includeInterval": false
+  },
+  "groupBy": "program",
+  "metrics": [
+    {
+      "key": "submission_count",
+      "label": "Submissions",
+      "aggregation": "count"
+    }
+  ],
+  "sortBy": {
+    "key": "submission_count",
+    "dir": "desc"
+  },
+  "summaryCards": [
+    {
+      "label": "Total Engagements",
+      "value": "total.count"
+    },
+    {
+      "label": "Total Submissions",
+      "value": "total.bounty"
+    },
+    {
+      "label": "% Active",
+      "value": "pct.accepted"
+    },
+    {
+      "label": "Unique Researchers",
+      "value": "countDistinct.researcher"
+    }
+  ],
+  "chartType": "bar",
+  "chartXLabel": "Engagement",
+  "chartYLabel": "Submissions",
+  "allowedChartTypes": [
+    "bar"
+  ],
+  "series": [
+    {
+      "metricKey": "submission_count",
+      "color": "#f97316"
+    }
+  ],
+  "tableColumns": [
+    {
+      "key": "name",
+      "label": "Engagement"
+    },
+    {
+      "key": "code",
+      "label": "Code"
+    },
+    {
+      "key": "status",
+      "label": "Status"
+    },
+    {
+      "key": "submission_count",
+      "label": "Submissions"
+    }
+  ],
+  "exportFilename": "bc-engagement-overview",
+  "customFetchData": "\n    return ctx.bc_getEngagements()\n  ",
+  "customTransform": "\n    const rows = raw.map(e => ({\n      name: e.name,\n      code: e.code,\n      status: e.status,\n      submission_count: e.submission_count,\n    })).sort((a, b) => b.submission_count - a.submission_count)\n    const totalEngagements = rows.length\n    const totalSubmissions = rows.reduce((s, r) => s + r.submission_count, 0)\n    const active = rows.filter(r => r.status === 'open').length\n    return {\n      rows,\n      chartData: rows.map(r => ({ label: r.code, submission_count: r.submission_count })),\n      summaryCards: [\n        { label: 'Total Engagements', value: totalEngagements },\n        { label: 'Total Submissions', value: totalSubmissions },\n        { label: '% Active', value: totalEngagements > 0 ? Math.round(active / totalEngagements * 100) + '%' : '0%' },\n        { label: 'Unique Researchers', value: 'N/A' },\n      ],\n    }\n  ",
+  "sampleFixtureData": null
+}

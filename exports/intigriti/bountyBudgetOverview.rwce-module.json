@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "id": "bountyBudgetOverview",
+  "title": "Intigriti Bounty Budget Overview",
+  "description": "Shows bounty spend, award distribution by severity, and remaining program budget.",
+  "category": "bounty",
+  "author": "Reporting Workbench",
+  "version": "1.0.0",
+  "platform": "intigriti",
+  "dataSource": "payouts",
+  "params": {
+    "includePrograms": true,
+    "includeDateRange": false,
+    "includeInterval": true
+  },
+  "groupBy": "payout.type",
+  "metrics": [],
+  "sortBy": {
+    "key": "period",
+    "dir": "asc"
+  },
+  "summaryCards": [],
+  "chartType": "bar",
+  "chartXLabel": "Period",
+  "chartYLabel": "USD Awarded",
+  "allowedChartTypes": [
+    "bar",
+    "line"
+  ],
+  "series": [
+    {
+      "metricKey": "total",
+      "color": "var(--brand-blue)"
+    }
+  ],
+  "tableColumns": [
+    {
+      "key": "severity",
+      "label": "Severity"
+    },
+    {
+      "key": "count",
+      "label": "Count"
+    },
+    {
+      "key": "total",
+      "label": "Total (USD)"
+    },
+    {
+      "key": "avg",
+      "label": "Avg Award (USD)"
+    }
+  ],
+  "exportFilename": "bounty-budget-overview",
+  "customFetchData": "\n    const ids = params.programIds || [];\n    if (ids.length === 0) throw new Error('At least one program is required');\n    const payouts = await ctx.getAllPayouts();\n    const programDetails = await Promise.all(ids.map(function(id) { return ctx.getProgramDetail(id); }));\n    return { payouts: payouts, programDetails: programDetails };\n  ",
+  "customTransform": "\n    const { payouts, programDetails } = raw;\n    const interval = params.interval || 'week';\n    const programIds = params.programIds || [];\n    const viewMode = params.viewMode || 'combine';\n    const { bucketKey, COMPARE_COLORS } = ctx;\n\n    const filtered = programIds.length > 0\n      ? payouts.filter(function(p) { return programIds.includes(p.originators.programId || ''); })\n      : payouts;\n\n    const totalAwarded = filtered.reduce(function(s, p) { return s + p.amount.value; }, 0);\n    const currency = (filtered[0] && filtered[0].amount.currency) || 'USD';\n    const avgAward = filtered.length > 0 ? Math.round(totalAwarded / filtered.length) : 0;\n    const budget = programIds.length === 1 ? (programDetails[0] && programDetails[0].programBudget) : null;\n\n    // Group by severity (payouts don't carry severity; all assigned Unknown for now)\n    const groups = {};\n    for (const p of filtered) {\n      const sev = 'Unknown';\n      if (!groups[sev]) groups[sev] = { count: 0, total: 0 };\n      groups[sev].count++;\n      groups[sev].total += p.amount.value;\n    }\n    const bySeverityData = Object.entries(groups).map(function([severity, data]) {\n      return { severity: severity, count: data.count, total: data.total, avg: data.count > 0 ? Math.round(data.total / data.count) : 0 };\n    });\n\n    // Group by interval for chart\n    function groupByInterval(ps, ivl) {\n      const buckets = {};\n      for (const p of ps) {\n        const key = bucketKey(p.createdAt, ivl);\n        buckets[key] = (buckets[key] || 0) + p.amount.value;\n      }\n      return Object.entries(buckets).sort(function(a, b) { return a[0].localeCompare(b[0]); }).map(function([period, total]) { return { period: period, total: total }; });\n    }\n\n    function groupByIntervalPerProgram(ps, pid, ivl) {\n      const buckets = {};\n      for (const p of ps.filter(function(x) { return (x.originators.programId || '') === pid; })) {\n        const key = bucketKey(p.createdAt, ivl);\n        buckets[key] = (buckets[key] || 0) + p.amount.value;\n      }\n      return buckets;\n    }\n\n    const summaryCards = [\n      { label: 'Total Awarded', value: currency + ' ' + totalAwarded.toLocaleString() },\n      { label: 'Award Count', value: filtered.length },\n      { label: 'Avg Award', value: currency + ' ' + avgAward.toLocaleString() },\n      { label: 'Budget Remaining', value: budget && budget.budgetLeft ? budget.budgetLeft.currency + ' ' + budget.budgetLeft.value.toLocaleString() : 'N/A' },\n    ];\n\n    if (viewMode === 'compare' && programIds.length > 1) {\n      const programList = params.programs || [];\n      const allPeriods = new Set();\n      for (const id of programIds) {\n        const perProg = groupByIntervalPerProgram(filtered, id, interval);\n        Object.keys(perProg).forEach(function(k) { allPeriods.add(k); });\n      }\n      const compareData = Array.from(allPeriods).sort().map(function(period) {\n        const row = { period: period };\n        for (const id of programIds) {\n          const perProg = groupByIntervalPerProgram(filtered, id, interval);\n          row[id] = perProg[period] || 0;\n        }\n        return row;\n      });\n      const dynamicChartConfig = {\n        type: 'bar', xKey: 'period', xLabel: 'Period', yLabel: currency + ' Awarded',\n        allowedChartTypes: programIds.length <= 5 ? ['bar', 'stackedBar', 'line'] : ['bar', 'stackedBar'],\n        series: programIds.map(function(id, i) { return { key: id, label: (programList.find(function(p) { return p.id === id; }) || {}).name || id, color: COMPARE_COLORS[i % COMPARE_COLORS.length] }; }),\n      };\n      return { rows: bySeverityData, chartData: compareData, summaryCards: summaryCards, chartConfig: dynamicChartConfig, rawData: raw };\n    }\n\n    const byIntervalData = groupByInterval(filtered, interval);\n    return { rows: bySeverityData, chartData: byIntervalData, summaryCards: summaryCards, rawData: raw };\n  ",
+  "customSummaryFormatter": "\n    const cards = data.summaryCards;\n    return 'Awarded ' + cards[0].value + ' across ' + cards[1].value + ' submissions (avg ' + cards[2].value + '). Budget remaining: ' + cards[3].value + '.';\n  ",
+  "sampleFixtureData": null,
+  "sampleFixtureParams": {
+    "programIds": [
+      "prog-alpha-001"
+    ],
+    "interval": "week"
+  }
+}

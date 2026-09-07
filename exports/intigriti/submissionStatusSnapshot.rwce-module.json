@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "id": "submissionStatusSnapshot",
+  "title": "Intigriti Submission Status Snapshot",
+  "description": "Current operational view of where submissions stand — by status, severity, and age.",
+  "category": "snapshot",
+  "author": "Reporting Workbench",
+  "version": "1.0.0",
+  "platform": "intigriti",
+  "dataSource": "submissions",
+  "params": {
+    "includePrograms": true,
+    "includeDateRange": false,
+    "includeInterval": false
+  },
+  "groupBy": "status",
+  "metrics": [],
+  "sortBy": {
+    "key": "status",
+    "dir": "asc"
+  },
+  "summaryCards": [],
+  "chartType": "bar",
+  "chartXLabel": "Age",
+  "chartYLabel": "Submissions",
+  "allowedChartTypes": [
+    "bar",
+    "stackedBar",
+    "line"
+  ],
+  "series": [
+    {
+      "metricKey": "count",
+      "color": "var(--brand-blue)"
+    }
+  ],
+  "tableColumns": [
+    {
+      "key": "status",
+      "label": "Status"
+    },
+    {
+      "key": "count",
+      "label": "Count"
+    },
+    {
+      "key": "pct",
+      "label": "% of Total"
+    }
+  ],
+  "exportFilename": "submission-status-snapshot",
+  "customFetchData": "\n    const ids = params.programIds || [];\n    if (ids.length === 0) throw new Error('At least one program is required');\n    const results = await Promise.all(ids.map(function(id) { return ctx.getProgramSubmissions(id); }));\n    return results.flat();\n  ",
+  "customTransform": "\n    const submissions = raw;\n    const programIds = params.programIds || [];\n    const viewMode = params.viewMode || 'combine';\n    const { daysBetween, COMPARE_COLORS } = ctx;\n\n    const filtered = programIds.length > 0\n      ? submissions.filter(function(s) { return programIds.includes(s.originators.programId || ''); })\n      : submissions;\n\n    const statusCounts = {};\n    const ageBuckets = ['0-2 days', '3-7 days', '8-14 days', '15-30 days', '30+ days'];\n    const ageCounts = { '0-2 days': 0, '3-7 days': 0, '8-14 days': 0, '15-30 days': 0, '30+ days': 0 };\n\n    function ageBucket(days) {\n      if (days <= 2) return '0-2 days';\n      if (days <= 7) return '3-7 days';\n      if (days <= 14) return '8-14 days';\n      if (days <= 30) return '15-30 days';\n      return '30+ days';\n    }\n\n    for (const s of filtered) {\n      const status = s.state.status.value;\n      statusCounts[status] = (statusCounts[status] || 0) + 1;\n      const bucket = ageBucket(daysBetween(s.createdAt));\n      ageCounts[bucket]++;\n    }\n\n    const statusRows = Object.entries(statusCounts).map(function([status, count]) {\n      return { status: status, count: count, pct: filtered.length > 0 ? Math.round(count / filtered.length * 100) + '%' : '0%' };\n    });\n\n    const open = filtered.filter(function(s) { return !['Closed', 'Archived'].includes(s.state.status.value); });\n\n    const summaryCards = [\n      { label: 'Total Submissions', value: filtered.length },\n      { label: 'Open / In Progress', value: open.length },\n      { label: 'Accepted', value: statusCounts['Accepted'] || 0 },\n      { label: 'Closed', value: statusCounts['Closed'] || 0 },\n    ];\n\n    if (viewMode === 'compare' && programIds.length > 1) {\n      const programList = params.programs || [];\n      const compareData = ageBuckets.map(function(bucket) {\n        const row = { bucket: bucket };\n        for (const id of programIds) {\n          const progSubs = filtered.filter(function(s) { return (s.originators.programId || '') === id; });\n          row[id] = progSubs.filter(function(s) { return ageBucket(daysBetween(s.createdAt)) === bucket; }).length;\n        }\n        return row;\n      });\n      const dynamicChartConfig = {\n        type: 'bar', xKey: 'bucket', xLabel: 'Age', yLabel: 'Submissions',\n        series: programIds.map(function(id, i) { return { key: id, label: (programList.find(function(p) { return p.id === id; }) || {}).name || id, color: COMPARE_COLORS[i % COMPARE_COLORS.length] }; }),\n      };\n      return { rows: statusRows, chartData: compareData, summaryCards: summaryCards, chartConfig: dynamicChartConfig, rawData: { submissions: filtered, ageCounts: ageCounts, statusCounts: statusCounts } };\n    }\n\n    const ageRows = ageBuckets.map(function(bucket) { return { bucket: bucket, count: ageCounts[bucket] }; });\n    return { rows: statusRows, chartData: ageRows, summaryCards: summaryCards, rawData: { submissions: filtered, ageCounts: ageCounts, statusCounts: statusCounts } };\n  ",
+  "customSummaryFormatter": "\n    const cards = data.summaryCards;\n    return cards[0].value + ' total submissions, ' + cards[1].value + ' currently open.';\n  ",
+  "sampleFixtureData": null,
+  "sampleFixtureParams": {
+    "programIds": [
+      "prog-alpha-001"
+    ]
+  }
+}

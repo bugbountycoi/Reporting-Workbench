@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "id": "weeklyTriageSummary",
+  "title": "Intigriti Weekly Triage Summary",
+  "description": "Triage throughput by configurable interval — acceptance rates, queue trends, and rejection breakdown.",
+  "category": "triage",
+  "author": "Reporting Workbench",
+  "version": "1.0.0",
+  "platform": "intigriti",
+  "dataSource": "submissions",
+  "params": {
+    "includePrograms": true,
+    "includeDateRange": true,
+    "includeInterval": true
+  },
+  "groupBy": "time.week",
+  "metrics": [],
+  "sortBy": {
+    "key": "period",
+    "dir": "asc"
+  },
+  "summaryCards": [],
+  "chartType": "bar",
+  "chartXLabel": "Period",
+  "chartYLabel": "Count",
+  "allowedChartTypes": [
+    "bar",
+    "stackedBar",
+    "line"
+  ],
+  "series": [
+    {
+      "metricKey": "received",
+      "color": "var(--brand-blue)"
+    },
+    {
+      "metricKey": "accepted",
+      "color": "var(--brand-green)"
+    },
+    {
+      "metricKey": "rejected",
+      "color": "var(--brand-red)"
+    },
+    {
+      "metricKey": "duplicate",
+      "color": "var(--brand-gold)"
+    }
+  ],
+  "tableColumns": [
+    {
+      "key": "period",
+      "label": "Period"
+    },
+    {
+      "key": "received",
+      "label": "Received"
+    },
+    {
+      "key": "accepted",
+      "label": "Accepted"
+    },
+    {
+      "key": "rejected",
+      "label": "Rejected"
+    },
+    {
+      "key": "duplicate",
+      "label": "Duplicates"
+    },
+    {
+      "key": "processed",
+      "label": "Total Processed"
+    }
+  ],
+  "exportFilename": "weekly-triage-summary",
+  "customFetchData": "\n    const ids = params.programIds || [];\n    if (ids.length === 0) throw new Error('At least one program is required');\n    const results = await Promise.all(ids.map(function(id) { return ctx.getProgramSubmissions(id); }));\n    return results.flat();\n  ",
+  "customTransform": "\n    const submissions = raw;\n    const startDate = params.startDate || '2025-07-01';\n    const endDate = params.endDate || '2025-07-28';\n    const interval = params.interval || 'week';\n    const programIds = params.programIds || [];\n    const viewMode = params.viewMode || 'combine';\n    const { bucketKey, allBuckets, COMPARE_COLORS } = ctx;\n\n    const filtered = programIds.length > 0\n      ? submissions.filter(function(s) { return programIds.includes(s.originators.programId || ''); })\n      : submissions;\n\n    function buildRows(subs, start, end, ivl) {\n      const buckets = allBuckets(start, end, ivl);\n      const byBucket = {};\n      for (const s of subs) {\n        const k = bucketKey(s.createdAt, ivl);\n        if (!byBucket[k]) byBucket[k] = [];\n        byBucket[k].push(s);\n      }\n      return buckets.map(function(bucket) {\n        const week = byBucket[bucket] || [];\n        const received = week.length;\n        const accepted = week.filter(function(s) { return s.state.status.value === 'Accepted'; }).length;\n        const rejected = week.filter(function(s) { return s.state.closeReason && (s.state.closeReason.value === 'Not Applicable' || s.state.closeReason.value === 'Informative'); }).length;\n        const duplicate = week.filter(function(s) { return s.state.closeReason && s.state.closeReason.value === 'Duplicate'; }).length;\n        return { period: bucket, received: received, accepted: accepted, rejected: rejected, duplicate: duplicate, processed: accepted + rejected + duplicate };\n      });\n    }\n\n    const rows = buildRows(filtered, startDate, endDate, interval);\n    const summaryCards = [\n      { label: 'Total Received', value: rows.reduce(function(s, r) { return s + r.received; }, 0) },\n      { label: 'Accepted / Valid', value: rows.reduce(function(s, r) { return s + r.accepted; }, 0) },\n      { label: 'Rejected / Informative', value: rows.reduce(function(s, r) { return s + r.rejected; }, 0) },\n      { label: 'Duplicates', value: rows.reduce(function(s, r) { return s + r.duplicate; }, 0) },\n    ];\n\n    if (viewMode === 'compare' && programIds.length > 1) {\n      const programList = params.programs || [];\n      const buckets = allBuckets(startDate, endDate, interval);\n      const byBucketByProg = {};\n      for (const s of filtered) {\n        const k = bucketKey(s.createdAt, interval);\n        const pid = s.originators.programId || '';\n        if (!byBucketByProg[k]) byBucketByProg[k] = {};\n        byBucketByProg[k][pid] = (byBucketByProg[k][pid] || 0) + 1;\n      }\n      const compareData = buckets.map(function(bucket) {\n        const row = { period: bucket };\n        for (const id of programIds) row[id] = (byBucketByProg[bucket] && byBucketByProg[bucket][id]) || 0;\n        return row;\n      });\n      const dynamicChartConfig = {\n        type: 'bar', xKey: 'period', xLabel: 'Period', yLabel: 'Submissions Received',\n        allowedChartTypes: programIds.length <= 5 ? ['bar', 'stackedBar', 'line'] : ['bar', 'stackedBar'],\n        series: programIds.map(function(id, i) { return { key: id, label: (programList.find(function(p) { return p.id === id; }) || {}).name || id, color: COMPARE_COLORS[i % COMPARE_COLORS.length] }; }),\n      };\n      return { rows: rows, chartData: compareData, summaryCards: summaryCards, chartConfig: dynamicChartConfig, rawData: raw };\n    }\n\n    return { rows: rows, chartData: rows, summaryCards: summaryCards, rawData: raw };\n  ",
+  "customSummaryFormatter": "\n    const cards = data.summaryCards;\n    return 'Total received: ' + cards[0].value + '. Accepted: ' + cards[1].value + '.';\n  ",
+  "sampleFixtureData": null,
+  "sampleFixtureParams": {
+    "programIds": [
+      "prog-alpha-001"
+    ],
+    "startDate": "2025-07-01",
+    "endDate": "2025-07-28",
+    "interval": "week"
+  }
+}

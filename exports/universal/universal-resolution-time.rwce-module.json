@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "id": "universal-resolution-time",
+  "title": "Mean Time to Resolution",
+  "description": "Distribution of time from submission to resolution, using the last-updated timestamp as a resolution proxy. Works on any platform. Useful for measuring response SLAs and identifying slow-moving submissions.",
+  "category": "snapshot",
+  "author": "Reporting Workbench",
+  "version": "1.0.0",
+  "platform": "universal",
+  "dataSource": "submissions",
+  "params": {
+    "includePrograms": true,
+    "includeDateRange": true,
+    "includeInterval": false
+  },
+  "groupBy": "severity",
+  "metrics": [],
+  "sortBy": {
+    "key": "count",
+    "dir": "desc"
+  },
+  "summaryCards": [],
+  "chartType": "bar",
+  "chartXLabel": "Time to Resolution",
+  "chartYLabel": "Submissions",
+  "allowedChartTypes": [
+    "bar"
+  ],
+  "series": [
+    {
+      "metricKey": "count",
+      "color": "var(--brand-blue)"
+    }
+  ],
+  "tableColumns": [
+    {
+      "key": "bucket",
+      "label": "Time to Resolution"
+    },
+    {
+      "key": "count",
+      "label": "Submissions"
+    },
+    {
+      "key": "pct",
+      "label": "% of Resolved"
+    },
+    {
+      "key": "avgDays",
+      "label": "Avg Days in Bucket"
+    }
+  ],
+  "exportFilename": "mean-time-to-resolution",
+  "customFetchData": "\n    var ids = params.programIds || [];\n    if (ids.length === 0) throw new Error('At least one program is required');\n    var results = await Promise.all(ids.map(function(id) { return ctx.getSubmissions(id); }));\n    var all = results.flat();\n    var start = params.startDate ? new Date(params.startDate).getTime() / 1000 : 0;\n    var end   = params.endDate   ? new Date(params.endDate).getTime()   / 1000 : Infinity;\n    return all.filter(function(s) { return s.submittedAt >= start && s.submittedAt <= end; });\n  ",
+  "customTransform": "\n    var BUCKETS = [\n      { label: '< 1 day',    min: 0,   max: 1   },\n      { label: '1 – 7 days', min: 1,   max: 7   },\n      { label: '8 – 30 days',min: 7,   max: 30  },\n      { label: '31 – 90 days',min: 30, max: 90  },\n      { label: '> 90 days',  min: 90,  max: Infinity },\n    ];\n\n    // Only count submissions that have actually been resolved or closed\n    var resolved = raw.filter(function(s) {\n      return (s.state === 'resolved' || s.state === 'closed') && s.updatedAt !== null;\n    });\n\n    // Build bucket tallies\n    var bucketData = BUCKETS.map(function(b) {\n      return { label: b.label, count: 0, totalDays: 0, min: b.min, max: b.max };\n    });\n\n    var totalDaysAll = 0;\n    var maxDays = 0;\n    var minDays = Infinity;\n\n    for (var i = 0; i < resolved.length; i++) {\n      var s = resolved[i];\n      var days = (s.updatedAt - s.submittedAt) / 86400;\n      if (days < 0) days = 0;\n      totalDaysAll += days;\n      if (days > maxDays) maxDays = days;\n      if (days < minDays) minDays = days;\n\n      for (var j = 0; j < bucketData.length; j++) {\n        if (days >= bucketData[j].min && days < bucketData[j].max) {\n          bucketData[j].count++;\n          bucketData[j].totalDays += days;\n          break;\n        }\n      }\n    }\n\n    var totalResolved = resolved.length;\n    var avgDaysAll = totalResolved > 0 ? Math.round(totalDaysAll / totalResolved) : 0;\n\n    var rows = bucketData.filter(function(b) { return b.count > 0; }).map(function(b) {\n      return {\n        bucket:  b.label,\n        count:   b.count,\n        pct:     totalResolved > 0 ? Math.round(b.count / totalResolved * 100) + '%' : '0%',\n        avgDays: b.count > 0 ? Math.round(b.totalDays / b.count) : 0,\n      };\n    });\n\n    var stillOpen = raw.filter(function(s) {\n      return s.state === 'triaged' || s.state === 'new';\n    }).length;\n\n    return {\n      rows: rows,\n      chartData: bucketData.filter(function(b) { return b.count > 0; }).map(function(b) {\n        return { label: b.label, count: b.count };\n      }),\n      summaryCards: [\n        { label: 'Resolved / Closed', value: totalResolved },\n        { label: 'Avg Resolution Time', value: avgDaysAll + ' days' },\n        { label: 'Fastest',  value: totalResolved > 0 ? Math.round(minDays) + ' days' : '—' },\n        { label: 'Still Open (Triaged)', value: stillOpen },\n      ],\n      rawData: raw,\n    };\n  ",
+  "sampleFixtureData": null,
+  "sampleFixtureParams": {
+    "programIds": [
+      "prog-alpha-001"
+    ],
+    "startDate": "2024-01-01",
+    "endDate": "2026-09-01"
+  }
+}

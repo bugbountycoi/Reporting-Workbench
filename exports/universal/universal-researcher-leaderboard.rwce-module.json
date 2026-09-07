@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "id": "universal-researcher-leaderboard",
+  "title": "Researcher Leaderboard",
+  "description": "Top researchers ranked by accepted submissions and bounty earned. Normalized from any platform — works on Intigriti, HackerOne, and Bugcrowd.",
+  "category": "snapshot",
+  "author": "Reporting Workbench",
+  "version": "1.0.0",
+  "platform": "universal",
+  "dataSource": "submissions",
+  "params": {
+    "includePrograms": true,
+    "includeDateRange": true,
+    "includeInterval": false
+  },
+  "groupBy": "researcher",
+  "metrics": [],
+  "sortBy": {
+    "key": "accepted",
+    "dir": "desc"
+  },
+  "summaryCards": [],
+  "chartType": "bar",
+  "chartXLabel": "Researcher",
+  "chartYLabel": "Accepted Submissions",
+  "allowedChartTypes": [
+    "bar"
+  ],
+  "series": [
+    {
+      "metricKey": "accepted",
+      "color": "var(--brand-green)"
+    }
+  ],
+  "tableColumns": [
+    {
+      "key": "rank",
+      "label": "#"
+    },
+    {
+      "key": "researcher",
+      "label": "Researcher"
+    },
+    {
+      "key": "total",
+      "label": "Total"
+    },
+    {
+      "key": "accepted",
+      "label": "Accepted"
+    },
+    {
+      "key": "invalid",
+      "label": "Invalid / Dup"
+    },
+    {
+      "key": "bounty",
+      "label": "Bounty Earned (USD)"
+    }
+  ],
+  "exportFilename": "researcher-leaderboard",
+  "customFetchData": "\n    var ids = params.programIds || [];\n    if (ids.length === 0) throw new Error('At least one program is required');\n    var results = await Promise.all(ids.map(function(id) { return ctx.getSubmissions(id); }));\n    var all = results.flat();\n    var start = params.startDate ? new Date(params.startDate).getTime() / 1000 : 0;\n    var end   = params.endDate   ? new Date(params.endDate).getTime()   / 1000 : Infinity;\n    return all.filter(function(s) { return s.submittedAt >= start && s.submittedAt <= end; });\n  ",
+  "customTransform": "\n    var researchers = {};\n\n    for (var i = 0; i < raw.length; i++) {\n      var s = raw[i];\n      var handle = s.researcherHandle || '(unknown)';\n      if (!researchers[handle]) {\n        researchers[handle] = { researcher: handle, total: 0, accepted: 0, invalid: 0, bounty: 0 };\n      }\n      researchers[handle].total++;\n      if (s.state === 'resolved') {\n        researchers[handle].accepted++;\n        if (s.payoutAmount) researchers[handle].bounty += s.payoutAmount;\n      }\n      if (s.state === 'invalid' || s.state === 'duplicate') {\n        researchers[handle].invalid++;\n      }\n    }\n\n    // Sort by accepted desc, then total desc, then handle asc\n    var sorted = Object.values(researchers).sort(function(a, b) {\n      if (b.accepted !== a.accepted) return b.accepted - a.accepted;\n      if (b.total    !== a.total)    return b.total    - a.total;\n      return a.researcher.localeCompare(b.researcher);\n    });\n\n    // Limit to top 25\n    var top = sorted.slice(0, 25);\n\n    var rows = top.map(function(r, idx) {\n      return {\n        rank:       idx + 1,\n        researcher: r.researcher,\n        total:      r.total,\n        accepted:   r.accepted,\n        invalid:    r.invalid,\n        bounty:     r.bounty > 0 ? '$' + Math.round(r.bounty).toLocaleString() : '—',\n      };\n    });\n\n    var uniqueCount   = Object.keys(researchers).length;\n    var topResearcher = top.length > 0 ? top[0].researcher : '—';\n    var topAccepted   = top.length > 0 ? top[0].accepted   : 0;\n    var topEarner     = sorted.slice().sort(function(a, b) { return b.bounty - a.bounty; })[0];\n\n    var chartData = top.slice(0, 10).map(function(r) {\n      return { label: r.researcher, accepted: r.accepted };\n    });\n\n    return {\n      rows: rows,\n      chartData: chartData,\n      summaryCards: [\n        { label: 'Unique Researchers',   value: uniqueCount },\n        { label: 'Most Prolific',         value: topResearcher + ' (' + topAccepted + ' accepted)' },\n        { label: 'Top Earner',            value: topEarner ? topEarner.researcher + ' ($' + Math.round(topEarner.bounty).toLocaleString() + ')' : '—' },\n        { label: 'Avg Accepted/Researcher', value: uniqueCount > 0 ? Math.round(rows.reduce(function(a, r) { return a + r.accepted; }, 0) / uniqueCount * 10) / 10 : 0 },\n      ],\n      rawData: raw,\n    };\n  ",
+  "sampleFixtureData": null,
+  "sampleFixtureParams": {
+    "programIds": [
+      "prog-alpha-001"
+    ],
+    "startDate": "2024-01-01",
+    "endDate": "2026-09-01"
+  }
+}

@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "id": "universal-severity-breakdown",
+  "title": "Severity Breakdown",
+  "description": "Distribution of submissions by severity — works on Intigriti, HackerOne, and Bugcrowd. Shows critical, high, medium, low, and informational counts with acceptance and bounty totals.",
+  "category": "snapshot",
+  "author": "Reporting Workbench",
+  "version": "1.0.0",
+  "platform": "universal",
+  "dataSource": "submissions",
+  "params": {
+    "includePrograms": true,
+    "includeDateRange": true,
+    "includeInterval": false
+  },
+  "groupBy": "severity",
+  "metrics": [],
+  "sortBy": {
+    "key": "count",
+    "dir": "desc"
+  },
+  "summaryCards": [],
+  "chartType": "bar",
+  "chartXLabel": "Severity",
+  "chartYLabel": "Submissions",
+  "allowedChartTypes": [
+    "bar",
+    "stackedBar"
+  ],
+  "series": [
+    {
+      "metricKey": "count",
+      "color": "#64748b"
+    },
+    {
+      "metricKey": "accepted",
+      "color": "#22c55e"
+    }
+  ],
+  "tableColumns": [
+    {
+      "key": "severity",
+      "label": "Severity"
+    },
+    {
+      "key": "count",
+      "label": "Total"
+    },
+    {
+      "key": "accepted",
+      "label": "Accepted"
+    },
+    {
+      "key": "pctAccepted",
+      "label": "% Accepted"
+    },
+    {
+      "key": "bountyTotal",
+      "label": "Bounty Paid (USD)"
+    }
+  ],
+  "exportFilename": "severity-breakdown",
+  "customFetchData": "\n    var ids = params.programIds || [];\n    if (ids.length === 0) throw new Error('At least one program is required');\n    var results = await Promise.all(ids.map(function(id) { return ctx.getSubmissions(id); }));\n    var all = results.flat();\n    var start = params.startDate ? new Date(params.startDate).getTime() / 1000 : 0;\n    var end   = params.endDate   ? new Date(params.endDate).getTime()   / 1000 : Infinity;\n    return all.filter(function(s) { return s.submittedAt >= start && s.submittedAt <= end; });\n  ",
+  "customTransform": "\n    var ORDER = ['critical', 'high', 'medium', 'low', 'informational', 'unknown'];\n    var COLORS = {\n      critical:      '#dc2626',\n      high:          '#ea580c',\n      medium:        '#ca8a04',\n      low:           '#16a34a',\n      informational: '#0284c7',\n      unknown:       '#94a3b8',\n    };\n\n    var groups = {};\n    for (var i = 0; i < raw.length; i++) {\n      var s = raw[i];\n      var sev = s.severity || 'unknown';\n      if (!groups[sev]) groups[sev] = { severity: sev, count: 0, accepted: 0, bountyTotal: 0 };\n      groups[sev].count++;\n      if (s.state === 'resolved') {\n        groups[sev].accepted++;\n        if (s.payoutAmount) groups[sev].bountyTotal += s.payoutAmount;\n      }\n    }\n\n    var rows = ORDER.filter(function(sev) { return groups[sev]; }).map(function(sev) {\n      var g = groups[sev];\n      return {\n        severity:    g.severity,\n        count:       g.count,\n        accepted:    g.accepted,\n        pctAccepted: g.count > 0 ? Math.round(g.accepted / g.count * 100) + '%' : '0%',\n        bountyTotal: g.bountyTotal > 0 ? '$' + Math.round(g.bountyTotal).toLocaleString() : '—',\n      };\n    });\n\n    var total      = raw.length;\n    var critCount  = (groups['critical']  || {}).count    || 0;\n    var highCount  = (groups['high']      || {}).count    || 0;\n    var totalAccepted = rows.reduce(function(acc, r) { return acc + r.accepted; }, 0);\n    var critHigh   = critCount + highCount;\n    var allBounty  = rows.reduce(function(acc, r) {\n      var n = parseFloat((r.bountyTotal || '').replace(/[$,]/g, ''));\n      return acc + (isNaN(n) ? 0 : n);\n    }, 0);\n\n    var chartData = rows.map(function(r) {\n      return { label: r.severity, count: r.count, accepted: r.accepted, color: COLORS[r.severity] || '#94a3b8' };\n    });\n\n    return {\n      rows: rows,\n      chartData: chartData,\n      summaryCards: [\n        { label: 'Total Submissions', value: total },\n        { label: 'Critical + High',   value: critHigh + ' (' + (total > 0 ? Math.round(critHigh/total*100) : 0) + '%)' },\n        { label: 'Accepted',          value: totalAccepted + ' (' + (total > 0 ? Math.round(totalAccepted/total*100) : 0) + '%)' },\n        { label: 'Total Bounty Paid', value: allBounty > 0 ? '$' + Math.round(allBounty).toLocaleString() : '—' },\n      ],\n      rawData: raw,\n    };\n  ",
+  "sampleFixtureData": null,
+  "sampleFixtureParams": {
+    "programIds": [
+      "prog-alpha-001"
+    ],
+    "startDate": "2024-01-01",
+    "endDate": "2026-09-01"
+  }
+}
