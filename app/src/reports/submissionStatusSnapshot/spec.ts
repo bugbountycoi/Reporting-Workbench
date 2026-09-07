@@ -5,7 +5,7 @@ import { BC } from '../../themes/brandColors'
 export const submissionStatusSnapshotSpec: UserModuleSpec = {
   schemaVersion: 1,
   id: 'submissionStatusSnapshot',
-  title: 'Submission Status Snapshot',
+  title: 'Intigriti Submission Status Snapshot',
   description:
     'Current operational view of where submissions stand — by status, severity, and age.',
   category: 'snapshot',

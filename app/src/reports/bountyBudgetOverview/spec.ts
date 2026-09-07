@@ -18,7 +18,7 @@ const sampleRaw = {
 export const bountyBudgetOverviewSpec: UserModuleSpec = {
   schemaVersion: 1,
   id: 'bountyBudgetOverview',
-  title: 'Bounty Budget Overview',
+  title: 'Intigriti Bounty Budget Overview',
   description: 'Shows bounty spend, award distribution by severity, and remaining program budget.',
   category: 'bounty',
   author: 'Reporting Workbench',

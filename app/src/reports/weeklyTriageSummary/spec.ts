@@ -5,7 +5,7 @@ import { BC } from '../../themes/brandColors'
 export const weeklyTriageSummarySpec: UserModuleSpec = {
   schemaVersion: 1,
   id: 'weeklyTriageSummary',
-  title: 'Weekly Triage Summary',
+  title: 'Intigriti Weekly Triage Summary',
   description:
     'Triage throughput by configurable interval — acceptance rates, queue trends, and rejection breakdown.',
   category: 'triage',

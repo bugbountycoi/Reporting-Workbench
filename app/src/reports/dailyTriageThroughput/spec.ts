@@ -5,7 +5,7 @@ import { BC } from '../../themes/brandColors'
 export const dailyTriageThroughputSpec: UserModuleSpec = {
   schemaVersion: 1,
   id: 'dailyTriageThroughput',
-  title: 'Daily Triage Throughput',
+  title: 'Intigriti Daily Triage Throughput',
   description:
     'Shows the total number of submissions sitting in each queue (Triage, Pending, Accepted) per day — a running inventory view rather than a daily-inflow view.',
   category: 'triage',

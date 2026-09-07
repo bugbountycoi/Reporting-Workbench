@@ -16,7 +16,7 @@ const KNOWN_ENDPOINTS = [
 export const rawApiExplorerSpec: UserModuleSpec = {
   schemaVersion: 1,
   id: 'rawApiExplorer',
-  title: 'Raw API Explorer',
+  title: 'Intigriti Raw API Explorer',
   description:
     'Inspect raw API responses from any read-only endpoint. Useful for understanding available data.',
   category: 'developer',
