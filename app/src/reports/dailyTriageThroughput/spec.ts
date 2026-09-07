@@ -51,9 +51,9 @@ export const dailyTriageThroughputSpec: UserModuleSpec = {
 
   customTransform: `
     var submissions = raw;
-    var startDate = params.startDate || '2025-07-11';
-    var endDate   = params.endDate   || '2025-07-28';
-    var interval  = params.interval  || 'day';
+    var startDate = params.startDate || '2024-01-01';
+    var endDate   = params.endDate   || '2026-09-01';
+    var interval  = params.interval  || 'month';
     var programIds = params.programIds || [];
     var bucketKey  = ctx.bucketKey;
     var allBuckets = ctx.allBuckets;
@@ -203,8 +203,8 @@ export const dailyTriageThroughputSpec: UserModuleSpec = {
   sampleFixtureData: sampleSubmissions,
   sampleFixtureParams: {
     programIds: ['prog-alpha-001'],
-    startDate: '2025-07-11',
-    endDate: '2025-07-24',
-    interval: 'day',
+    startDate: '2024-01-01',
+    endDate: '2026-09-01',
+    interval: 'month',
   },
 }
