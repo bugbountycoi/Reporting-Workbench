@@ -9,6 +9,10 @@ type AgeBucket = '0-2 days' | '3-7 days' | '8-14 days' | '15-30 days' | '30+ day
 
 const AGE_BUCKETS: AgeBucket[] = ['0-2 days', '3-7 days', '8-14 days', '15-30 days', '30+ days']
 
+// Awaiting the customer/program owner's review. Intigriti's canonical status is
+// "Pending"; some data sets label the same state "Forwarded to customer".
+const PENDING_STATUSES = ['Pending', 'Forwarded to customer']
+
 function ageBucket(days: number): AgeBucket {
   if (days <= 2) return '0-2 days'
   if (days <= 7) return '3-7 days'
@@ -50,10 +54,12 @@ function transformData(raw: unknown, params: ReportParams): ReportData {
   }))
 
   const open = filtered.filter((s) => !['Closed', 'Archived'].includes(s.state.status.value))
+  const pendingCount = PENDING_STATUSES.reduce((n, k) => n + (statusCounts[k] ?? 0), 0)
 
   const summaryCards = [
     { label: 'Total Submissions', value: filtered.length },
     { label: 'Open / In Progress', value: open.length },
+    { label: 'Pending (with customer)', value: pendingCount },
     { label: 'Accepted', value: statusCounts['Accepted'] ?? 0 },
     { label: 'Closed', value: statusCounts['Closed'] ?? 0 },
   ]

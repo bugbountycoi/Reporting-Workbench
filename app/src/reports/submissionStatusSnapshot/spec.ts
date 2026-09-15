@@ -72,10 +72,13 @@ export const submissionStatusSnapshotSpec: UserModuleSpec = {
     });
 
     const open = filtered.filter(function(s) { return !['Closed', 'Archived'].includes(s.state.status.value); });
+    // Awaiting customer review: Intigriti calls this "Pending"; sample data uses "Forwarded to customer".
+    const pendingCount = ['Pending', 'Forwarded to customer'].reduce(function(n, k) { return n + (statusCounts[k] || 0); }, 0);
 
     const summaryCards = [
       { label: 'Total Submissions', value: filtered.length },
       { label: 'Open / In Progress', value: open.length },
+      { label: 'Pending (with customer)', value: pendingCount },
       { label: 'Accepted', value: statusCounts['Accepted'] || 0 },
       { label: 'Closed', value: statusCounts['Closed'] || 0 },
     ];

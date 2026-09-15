@@ -26,6 +26,7 @@ export const weeklyTriageSummarySpec: UserModuleSpec = {
   series: [
     { metricKey: 'received', color: BC.blue },
     { metricKey: 'accepted', color: BC.green },
+    { metricKey: 'pending', color: BC.orange },
     { metricKey: 'rejected', color: BC.red },
     { metricKey: 'duplicate', color: BC.gold },
   ],
@@ -33,6 +34,7 @@ export const weeklyTriageSummarySpec: UserModuleSpec = {
     { key: 'period', label: 'Period' },
     { key: 'received', label: 'Received' },
     { key: 'accepted', label: 'Accepted' },
+    { key: 'pending', label: 'Pending' },
     { key: 'rejected', label: 'Rejected' },
     { key: 'duplicate', label: 'Duplicates' },
     { key: 'processed', label: 'Total Processed' },
@@ -71,9 +73,11 @@ export const weeklyTriageSummarySpec: UserModuleSpec = {
         const week = byBucket[bucket] || [];
         const received = week.length;
         const accepted = week.filter(function(s) { return s.state.status.value === 'Accepted'; }).length;
+        // Awaiting customer review: Intigriti calls this "Pending"; sample data uses "Forwarded to customer".
+        const pending = week.filter(function(s) { return ['Pending', 'Forwarded to customer'].includes(s.state.status.value); }).length;
         const rejected = week.filter(function(s) { return s.state.closeReason && (s.state.closeReason.value === 'Not Applicable' || s.state.closeReason.value === 'Informative'); }).length;
         const duplicate = week.filter(function(s) { return s.state.closeReason && s.state.closeReason.value === 'Duplicate'; }).length;
-        return { period: bucket, received: received, accepted: accepted, rejected: rejected, duplicate: duplicate, processed: accepted + rejected + duplicate };
+        return { period: bucket, received: received, accepted: accepted, pending: pending, rejected: rejected, duplicate: duplicate, processed: accepted + rejected + duplicate };
       });
     }
 
@@ -81,6 +85,7 @@ export const weeklyTriageSummarySpec: UserModuleSpec = {
     const summaryCards = [
       { label: 'Total Received', value: rows.reduce(function(s, r) { return s + r.received; }, 0) },
       { label: 'Accepted / Valid', value: rows.reduce(function(s, r) { return s + r.accepted; }, 0) },
+      { label: 'Pending (with customer)', value: rows.reduce(function(s, r) { return s + r.pending; }, 0) },
       { label: 'Rejected / Informative', value: rows.reduce(function(s, r) { return s + r.rejected; }, 0) },
       { label: 'Duplicates', value: rows.reduce(function(s, r) { return s + r.duplicate; }, 0) },
     ];
