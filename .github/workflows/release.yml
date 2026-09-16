@@ -31,24 +31,8 @@ jobs:
         working-directory: app
         run: npm ci
 
-      # The validator requires a single combined submissions file; the repo
-      # stores it split into three parts to stay under GitHub's file-size limit.
-      - name: Combine fixture parts
-        working-directory: app/public/fixtures
-        run: |
-          python3 - <<'EOF'
-import json
-parts = [
-    'submissions.sample.part1.json',
-    'submissions.sample.part2.json',
-    'submissions.sample.part3.json',
-]
-combined = [record for f in parts for record in json.load(open(f))]
-json.dump(combined, open('submissions.sample.json', 'w'))
-print(f'Combined {len(combined)} submission records')
-EOF
-
-      # Runs fixture validation, type-checks, builds, bumps patch in package.json,
+      # package.sh assembles the combined submissions fixture from split parts if
+      # needed, validates fixtures, type-checks, builds, bumps the patch version,
       # and writes dist/reporting-workbench-<version>.zip
       - name: Package release
         run: bash scripts/package.sh

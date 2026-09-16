@@ -71,6 +71,22 @@ need zip
 need node
 need npm
 
+# Combine split fixture parts if the merged file is absent (e.g. clean CI checkout).
+# The combined file is gitignored because it's 50MB; the parts are the source of truth.
+COMBINED_FIXTURE="$APP/public/fixtures/submissions.sample.json"
+if [ ! -f "$COMBINED_FIXTURE" ]; then
+  echo "Assembling submissions fixture from split parts..."
+  FIXTURES_DIR="$APP/public/fixtures"
+  python3 - "$FIXTURES_DIR" <<'PYEOF'
+import json, sys, os
+d = sys.argv[1]
+parts = ['submissions.sample.part1.json', 'submissions.sample.part2.json', 'submissions.sample.part3.json']
+combined = [r for f in parts for r in json.load(open(os.path.join(d, f)))]
+json.dump(combined, open(os.path.join(d, 'submissions.sample.json'), 'w'))
+print(f'  {len(combined)} records assembled')
+PYEOF
+fi
+
 # Validate fixture data matches expected API shape before packaging
 echo "Validating fixture data..."
 node "$ROOT/scripts/validate-fixtures.js" || die "Fixture validation failed — fix errors above before releasing."
@@ -115,6 +131,10 @@ mkdir -p "$STAGING"
 
 # Copy built output only — no source code shipped
 cp -r "$APP/dist" "$STAGING/dist"
+
+# Strip the split fixture parts from the release — only the combined file ships.
+# The parts are git-tracked solely to stay under GitHub's 50MB file-size limit.
+rm -f "$STAGING/dist/fixtures/submissions.sample.part"*.json
 
 # Copy server and docs
 cp "$ROOT/server.mjs"         "$STAGING/server.mjs"

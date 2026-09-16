@@ -22,23 +22,20 @@ jobs:
         working-directory: app
         run: npm ci
 
-      - name: Combine fixture parts
-        working-directory: app/public/fixtures
-        run: |
-          python3 - <<'EOF'
-import json
-parts = [
-    'submissions.sample.part1.json',
-    'submissions.sample.part2.json',
-    'submissions.sample.part3.json',
-]
-combined = [record for f in parts for record in json.load(open(f))]
-json.dump(combined, open('submissions.sample.json', 'w'))
-print(f'Combined {len(combined)} submission records')
-EOF
-
       - name: Validate fixtures
-        run: node scripts/validate-fixtures.js
+        run: |
+          # Assemble combined submissions fixture from split parts if needed
+          if [ ! -f app/public/fixtures/submissions.sample.json ]; then
+            python3 -c "
+import json, os
+d = 'app/public/fixtures'
+parts = ['submissions.sample.part1.json', 'submissions.sample.part2.json', 'submissions.sample.part3.json']
+combined = [r for f in parts for r in json.load(open(os.path.join(d, f)))]
+json.dump(combined, open(os.path.join(d, 'submissions.sample.json'), 'w'))
+print(f'{len(combined)} submission records assembled')
+"
+          fi
+          node scripts/validate-fixtures.js
 
       - name: Build (type-check + bundle)
         working-directory: app
