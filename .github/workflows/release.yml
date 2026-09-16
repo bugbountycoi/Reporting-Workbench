@@ -1,0 +1,85 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  release:
+    name: Package & publish
+    # Skip the automated version-bump commit to avoid an infinite loop
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history lets generate_release_notes find the previous tag
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      # Pre-warm the npm cache so the npm ci inside package.sh is instant
+      - name: Install dependencies
+        working-directory: app
+        run: npm ci
+
+      # The validator requires a single combined submissions file; the repo
+      # stores it split into three parts to stay under GitHub's file-size limit.
+      - name: Combine fixture parts
+        working-directory: app/public/fixtures
+        run: |
+          python3 - <<'EOF'
+import json
+parts = [
+    'submissions.sample.part1.json',
+    'submissions.sample.part2.json',
+    'submissions.sample.part3.json',
+]
+combined = [record for f in parts for record in json.load(open(f))]
+json.dump(combined, open('submissions.sample.json', 'w'))
+print(f'Combined {len(combined)} submission records')
+EOF
+
+      # Runs fixture validation, type-checks, builds, bumps patch in package.json,
+      # and writes dist/reporting-workbench-<version>.zip
+      - name: Package release
+        run: bash scripts/package.sh
+
+      - name: Read new version
+        id: ver
+        run: |
+          VERSION=$(node -p "require('./app/package.json').version")
+          MAJOR=$(echo "$VERSION" | cut -d. -f1)
+          MINOR=$(echo "$VERSION" | cut -d. -f2)
+          PATCH=$(echo "$VERSION" | cut -d. -f3)
+          DISPLAY="${MAJOR}.${MINOR}.$(printf '%03d' $PATCH)"
+          echo "version=$VERSION"   >> $GITHUB_OUTPUT
+          echo "display=$DISPLAY"   >> $GITHUB_OUTPUT
+          echo "zip=dist/reporting-workbench-${DISPLAY}.zip" >> $GITHUB_OUTPUT
+
+      # Push the version bump so the repo stays in sync; [skip ci] prevents loop
+      - name: Commit & push version bump
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add app/package.json
+          git commit -m "Bump version to ${{ steps.ver.outputs.version }} [skip ci]"
+          git push
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.ver.outputs.version }}
+          name: Reporting Workbench v${{ steps.ver.outputs.version }}
+          # Auto-generate notes from merged PR descriptions since the last tag
+          generate_release_notes: true
+          make_latest: true
+          files: ${{ steps.ver.outputs.zip }}

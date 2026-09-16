@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Type-check & validate
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install dependencies
+        working-directory: app
+        run: npm ci
+
+      - name: Combine fixture parts
+        working-directory: app/public/fixtures
+        run: |
+          python3 - <<'EOF'
+import json
+parts = [
+    'submissions.sample.part1.json',
+    'submissions.sample.part2.json',
+    'submissions.sample.part3.json',
+]
+combined = [record for f in parts for record in json.load(open(f))]
+json.dump(combined, open('submissions.sample.json', 'w'))
+print(f'Combined {len(combined)} submission records')
+EOF
+
+      - name: Validate fixtures
+        run: node scripts/validate-fixtures.js
+
+      - name: Build (type-check + bundle)
+        working-directory: app
+        run: npm run build

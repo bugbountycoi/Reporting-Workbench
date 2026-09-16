@@ -32,6 +32,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# Generated fixture — assembled from split parts during CI; too large to commit
+app/public/fixtures/submissions.sample.json
+
 # Ai agents
 .claude/launch.json
 /.claude
