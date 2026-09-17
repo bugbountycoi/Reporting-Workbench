@@ -8,9 +8,9 @@ const PERIOD_OPTIONS = [
   { value: '12', label: '12 months' },
 ]
 
-export const intigrityPayoutHistorySpec: UserModuleSpec = {
+export const intigritiPayoutHistorySpec: UserModuleSpec = {
   schemaVersion: 1,
-  id: 'intigrityPayoutHistory',
+  id: 'intigritiPayoutHistory',
   title: 'Intigriti Monthly Payout History',
   description:
     'Historical bounty payments by month — total awarded, payment count, and average award size. Filter by lookback period (3, 6, 9, or 12 months).',
@@ -36,7 +36,7 @@ export const intigrityPayoutHistorySpec: UserModuleSpec = {
     { key: 'total', label: 'Total Awarded' },
     { key: 'avg', label: 'Avg Award' },
   ],
-  exportFilename: 'intgrity-payout-history',
+  exportFilename: 'intigriti-payout-history',
 
   customParamFields: [
     {

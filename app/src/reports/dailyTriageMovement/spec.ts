@@ -5,7 +5,7 @@ import { BC } from '../../themes/brandColors'
 export const dailyTriageMovementSpec: UserModuleSpec = {
   schemaVersion: 1,
   id: 'dailyTriageMovement',
-  title: 'Daily Triage Movement',
+  title: 'Intigriti Daily Triage Movement',
   description:
     'Shows submission flow in and out of triage for the selected program, date range, and time interval.',
   category: 'triage',
@@ -25,18 +25,21 @@ export const dailyTriageMovementSpec: UserModuleSpec = {
   chartYLabel: 'Submissions',
   allowedChartTypes: ['stackedBar', 'bar', 'line'],
   series: [
-    { metricKey: 'new', color: BC.blue },
-    { metricKey: 'pending', color: BC.green },
+    { metricKey: 'inProgress', color: BC.blue },
+    { metricKey: 'forwarded', color: BC.green },
+    { metricKey: 'accepted', color: BC.sky },
     { metricKey: 'closed', color: BC.grayMid },
     { metricKey: 'duplicate', color: BC.gold },
   ],
   tableColumns: [
-    { key: 'period', label: 'Period' },
-    { key: 'new', label: 'New' },
-    { key: 'pending', label: 'Pending' },
-    { key: 'closed', label: 'Closed' },
-    { key: 'duplicate', label: 'Duplicate' },
-    { key: 'netChange', label: 'Net Change' },
+    { key: 'period',     label: 'Period' },
+    { key: 'received',   label: 'Received' },
+    { key: 'inProgress', label: 'In Progress' },
+    { key: 'forwarded',  label: 'Forwarded / Pending' },
+    { key: 'accepted',   label: 'Accepted' },
+    { key: 'closed',     label: 'Closed' },
+    { key: 'duplicate',  label: 'Duplicate' },
+    { key: 'netChange',  label: 'Net Change' },
   ],
   exportFilename: 'daily-triage-movement',
 
@@ -70,23 +73,26 @@ export const dailyTriageMovementSpec: UserModuleSpec = {
       }
       return buckets.map(function(bucket) {
         const inBucket = byBucket[bucket] || [];
-        const newCount = inBucket.length;
-        // Awaiting customer review: Intigriti calls this "Pending"; sample data uses "Forwarded to customer".
-        const pendingCount = inBucket.filter(function(s) { var v = s.state.status.value.toLowerCase(); return v === 'pending' || v.includes('forwarded'); }).length;
-        const duplicateCount = inBucket.filter(function(s) { return (s.state.closeReason && s.state.closeReason.value.toLowerCase() === 'duplicate'); }).length;
-        const closedCount = inBucket.filter(function(s) { return s.state.status.value.toLowerCase() === 'closed' && !(s.state.closeReason && s.state.closeReason.value.toLowerCase().includes('duplicate')); }).length;
-        return { period: bucket, new: newCount, pending: pendingCount, closed: closedCount, duplicate: duplicateCount, netChange: newCount - closedCount - duplicateCount };
+        const received = inBucket.length;
+        // Each submission lands in exactly one column based on its current status.
+        // "Forwarded / Pending" covers both Intigriti "Pending" and "Forwarded to customer".
+        const duplicateCount  = inBucket.filter(function(s) { return s.state.closeReason && s.state.closeReason.value.toLowerCase() === 'duplicate'; }).length;
+        const closedCount     = inBucket.filter(function(s) { return s.state.status.value.toLowerCase() === 'closed' && !(s.state.closeReason && s.state.closeReason.value.toLowerCase() === 'duplicate'); }).length;
+        const acceptedCount   = inBucket.filter(function(s) { return s.state.status.value === 'Accepted'; }).length;
+        const forwardedCount  = inBucket.filter(function(s) { return s.state.status.value.toLowerCase().includes('forwarded') || s.state.status.value === 'Pending'; }).length;
+        const inProgressCount = received - duplicateCount - closedCount - acceptedCount - forwardedCount;
+        return { period: bucket, received: received, inProgress: inProgressCount, forwarded: forwardedCount, accepted: acceptedCount, closed: closedCount, duplicate: duplicateCount, netChange: received - closedCount - duplicateCount };
       });
     }
 
     const rows = buildRows(filtered, startDate, endDate, interval);
-    const totalNew = rows.reduce(function(s, r) { return s + r.new; }, 0);
+    const totalReceived = rows.reduce(function(s, r) { return s + r.received; }, 0);
     const totalClosed = rows.reduce(function(s, r) { return s + r.closed; }, 0);
     const netChange = rows.reduce(function(s, r) { return s + r.netChange; }, 0);
 
     const summaryCards = [
-      { label: 'New Submissions', value: totalNew, trend: 'neutral' },
-      { label: 'Pending (with customer)', value: rows.reduce(function(s, r) { return s + r.pending; }, 0), trend: 'neutral' },
+      { label: 'Received', value: totalReceived, trend: 'neutral' },
+      { label: 'Forwarded / Pending', value: rows.reduce(function(s, r) { return s + r.forwarded; }, 0), trend: 'neutral' },
       { label: 'Closed / Rejected', value: totalClosed, trend: 'neutral' },
       { label: 'Net Queue Change', value: netChange > 0 ? '+' + netChange : netChange, trend: netChange > 0 ? 'up' : netChange < 0 ? 'down' : 'neutral' },
     ];

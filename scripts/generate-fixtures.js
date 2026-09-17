@@ -452,11 +452,22 @@ const submissions = buildSubmissions()
 const payouts     = buildPayouts(submissions)
 const rewardReqs  = buildRewardRequests(submissions)
 
+// Split submissions into 3 equal parts to stay under Cloudflare's 25 MB per-asset limit.
+// fixtureLoader.ts fetches all three parts in parallel and merges them.
+const partSize = Math.ceil(submissions.length / 3)
+const submissionParts = [
+  submissions.slice(0, partSize),
+  submissions.slice(partSize, partSize * 2),
+  submissions.slice(partSize * 2),
+]
+
 const files = [
-  { name: 'programs.sample.json',        data: programs },
-  { name: 'submissions.sample.json',     data: submissions },
-  { name: 'payouts.sample.json',         data: payouts },
-  { name: 'rewardRequests.sample.json',  data: rewardReqs },
+  { name: 'programs.sample.json',              data: programs },
+  { name: 'submissions.sample.part1.json',     data: submissionParts[0] },
+  { name: 'submissions.sample.part2.json',     data: submissionParts[1] },
+  { name: 'submissions.sample.part3.json',     data: submissionParts[2] },
+  { name: 'payouts.sample.json',               data: payouts },
+  { name: 'rewardRequests.sample.json',        data: rewardReqs },
 ]
 
 for (const { name, data } of files) {
@@ -464,7 +475,14 @@ for (const { name, data } of files) {
   fs.writeFileSync(filePath, JSON.stringify(data, null, 0))
   const bytes = fs.statSync(filePath).size
   const kb = (bytes / 1024).toFixed(0)
-  console.log(`  ${name.padEnd(35)} ${String(data.length).padStart(6)} records  ${kb} KB`)
+  console.log(`  ${name.padEnd(40)} ${String(data.length).padStart(6)} records  ${kb} KB`)
+}
+
+// Remove the old monolithic file if it exists
+const monolithicPath = path.join(FIXTURES_DIR, 'submissions.sample.json')
+if (fs.existsSync(monolithicPath)) {
+  fs.unlinkSync(monolithicPath)
+  console.log('  Removed submissions.sample.json (superseded by part files)')
 }
 
 console.log('\nDone.')

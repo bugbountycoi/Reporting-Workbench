@@ -1,11 +1,11 @@
 import type { UserModuleSpec } from '../userModules/types'
-import submissionsSample from '../../fixtures/submissions.sample.json'
+import { sampleSubmissions } from '../dailyTriageMovement/fixtures'
 import { BC } from '../../themes/brandColors'
 
 export const submissionStatusSnapshotSpec: UserModuleSpec = {
   schemaVersion: 1,
   id: 'submissionStatusSnapshot',
-  title: 'Submission Status Snapshot',
+  title: 'Intigriti Submission Status Snapshot',
   description:
     'Current operational view of where submissions stand — by status, severity, and age.',
   category: 'snapshot',
@@ -109,6 +109,6 @@ export const submissionStatusSnapshotSpec: UserModuleSpec = {
     return cards[0].value + ' total submissions, ' + cards[1].value + ' currently open.';
   `,
 
-  sampleFixtureData: submissionsSample,
+  sampleFixtureData: sampleSubmissions,
   sampleFixtureParams: { programIds: ['prog-alpha-001'] },
 }

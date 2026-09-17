@@ -48,6 +48,15 @@ export function AppShell({ children, headerActions, banner }: Props) {
       >
         Reporting Workbench
         {activeTheme.footerText ? ` — ${activeTheme.footerText}` : ''}
+        {' · '}
+        <a
+          href="https://github.com/bugbountycoi/Reporting-Workbench"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="hover:text-brand-navy underline underline-offset-2 transition-colors"
+        >
+          Open source on GitHub
+        </a>
       </footer>
     </div>
   )

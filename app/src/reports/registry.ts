@@ -8,9 +8,9 @@ import { weeklyTriageSummarySpec } from './weeklyTriageSummary/spec'
 import { bountyBudgetOverviewSpec } from './bountyBudgetOverview/spec'
 import { submissionStatusSnapshotSpec } from './submissionStatusSnapshot/spec'
 import { rawApiExplorerSpec } from './rawApiExplorer/spec'
-import { intigrityPayoutHistorySpec } from './intigrityPayoutHistory/spec'
-import { intigrityQueueAgeSpec } from './intigrityQueueAge/spec'
-import { intigrityQueueForecastSpec } from './intigrityQueueForecast/spec'
+import { intigritiPayoutHistorySpec } from './intigritiPayoutHistory/spec'
+import { intigritiQueueAgeSpec } from './intigritiQueueAge/spec'
+import { intigritiQueueForecastSpec } from './intigritiQueueForecast/spec'
 
 const BUILT_IN_SPECS: UserModuleSpec[] = [
   dailyTriageMovementSpec,
@@ -18,9 +18,9 @@ const BUILT_IN_SPECS: UserModuleSpec[] = [
   bountyBudgetOverviewSpec,
   submissionStatusSnapshotSpec,
   rawApiExplorerSpec,
-  intigrityPayoutHistorySpec,
-  intigrityQueueAgeSpec,
-  intigrityQueueForecastSpec,
+  intigritiPayoutHistorySpec,
+  intigritiQueueAgeSpec,
+  intigritiQueueForecastSpec,
 ]
 
 function buildModules(ctx: AppContext): ReportModule[] {

@@ -1,9 +1,9 @@
 import type { UserModuleSpec } from '../userModules/types'
-import submissionsSample from '../../fixtures/submissions.sample.json'
+import { sampleSubmissions } from '../dailyTriageMovement/fixtures'
 
-export const intigrityQueueAgeSpec: UserModuleSpec = {
+export const intigritiQueueAgeSpec: UserModuleSpec = {
   schemaVersion: 1,
-  id: 'intigrityQueueAge',
+  id: 'intigritiQueueAge',
   title: 'Intigriti Queue Age Distribution',
   description:
     'Age histogram of unpaid reports in the queue (New, Triage, Forwarded to customer, and accepted but not yet paid), grouped by months since submission.',
@@ -27,7 +27,7 @@ export const intigrityQueueAgeSpec: UserModuleSpec = {
     { key: 'age', label: 'Age' },
     { key: 'count', label: 'Reports' },
   ],
-  exportFilename: 'intgrity-queue-age',
+  exportFilename: 'intigriti-queue-age',
 
   customFetchData: `
     const ids = params.programIds || [];
@@ -103,6 +103,6 @@ export const intigrityQueueAgeSpec: UserModuleSpec = {
     return cards[0].value + ' reports in queue. Oldest is ' + cards[1].value + '. Average age is ' + cards[3].value + '.';
   `,
 
-  sampleFixtureData: submissionsSample,
+  sampleFixtureData: sampleSubmissions,
   sampleFixtureParams: { programIds: ['prog-alpha-001'] },
 }
