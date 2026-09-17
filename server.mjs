@@ -105,9 +105,10 @@ const server = http.createServer((req, res) => {
   serveFile(res, filePath)
 })
 
-const port = (await checkPort(1337)) ? 1337 : 31337
-server.listen(port, '127.0.0.1', () => {
+const port = Number(process.env.PORT) || ((await checkPort(1337)) ? 1337 : 31337)
+const host = process.env.HOST ?? '127.0.0.1'
+server.listen(port, host, () => {
   console.log(`\n  Reporting Workbench`)
-  console.log(`  Open → http://localhost:${port}`)
+  console.log(`  Listening on ${host}:${port}`)
   console.log(`  Press Ctrl+C to stop\n`)
 })
