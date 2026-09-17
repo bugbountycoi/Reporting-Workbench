@@ -49,6 +49,16 @@ export interface SummaryCardDef {
   trend?: 'up' | 'down' | 'neutral' | null
 }
 
+// A secondary action button shown in the config panel alongside "Generate Report".
+// When clicked, the button re-runs the module's fetchData + transform with
+// params[actionId] set to the action id so the module can branch on it.
+export interface ModuleActionDef {
+  id: string
+  label: string
+  description?: string
+  warningMessage?: string
+}
+
 export interface UserModuleSpec {
   schemaVersion: 1
   id: string
@@ -93,6 +103,12 @@ export interface UserModuleSpec {
   customTransform?: string
   customSummaryFormatter?: string
 
+  // --- Module action buttons ---
+  // Extra buttons rendered alongside "Generate Report" in the config panel.
+  // Each action passes its id in params.deepScan (or params[action.id]) and
+  // re-runs fetchData + transform so the module can take a different code path.
+  customActions?: ModuleActionDef[]
+
   // --- Sample preview ---
   // Raw fixture data fed to the transform to produce the sample preview.
   // For user-created modules this is set automatically by the builder.
@@ -107,11 +123,12 @@ export interface UserModuleSpec {
 }
 
 // Context object passed to customFetchData(params, ctx).
-// Only these three named helpers are available — no raw apiGet.
+// Only these named helpers are available — no raw apiGet.
 export interface FetchCtx {
   getProgramSubmissions: (id: string, startDate?: string, endDate?: string) => Promise<unknown[]>
   getAllPayouts: () => Promise<unknown[]>
   getProgramDetail: (id: string) => Promise<unknown>
+  getSubmissionDetail: (code: string) => Promise<unknown>
 }
 
 // Context object passed to customTransform(raw, params, programs, ctx)

@@ -201,6 +201,7 @@ export function specToModule(spec: UserModuleSpec, programs: ProgramOverviewView
     requiredScopes: requiredScopes(spec),
     isAvailable: () => true,
     paramFields,
+    customActions: spec.customActions,
     chartConfig,
     sampleData: spec.sampleFixtureData ?? null,
     samplePreview,

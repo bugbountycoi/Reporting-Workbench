@@ -54,6 +54,13 @@ export interface AppContext {
   hasToken: boolean
 }
 
+export interface ModuleAction {
+  id: string
+  label: string
+  description?: string
+  warningMessage?: string
+}
+
 export interface ReportModule {
   id: string
   title: string
@@ -65,6 +72,7 @@ export interface ReportModule {
   requiredScopes: string[]
   isAvailable: (ctx: AppContext) => boolean
   paramFields: ParamField[]
+  customActions?: ModuleAction[]
   fetchData: (params: ReportParams) => Promise<unknown>
   transform: (raw: unknown, params: ReportParams) => Promise<ReportData>
   tableColumns: ColumnDef<Record<string, unknown>>[]
