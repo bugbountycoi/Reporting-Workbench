@@ -10,6 +10,7 @@ import { submissionStatusSnapshotSpec } from './submissionStatusSnapshot/spec'
 import { rawApiExplorerSpec } from './rawApiExplorer/spec'
 import { intigrityPayoutHistorySpec } from './intigrityPayoutHistory/spec'
 import { intigrityQueueAgeSpec } from './intigrityQueueAge/spec'
+import { intigrityQueueForecastSpec } from './intigrityQueueForecast/spec'
 
 const BUILT_IN_SPECS: UserModuleSpec[] = [
   dailyTriageMovementSpec,
@@ -19,6 +20,7 @@ const BUILT_IN_SPECS: UserModuleSpec[] = [
   rawApiExplorerSpec,
   intigrityPayoutHistorySpec,
   intigrityQueueAgeSpec,
+  intigrityQueueForecastSpec,
 ]
 
 function buildModules(ctx: AppContext): ReportModule[] {
