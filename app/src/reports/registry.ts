@@ -9,6 +9,7 @@ import { bountyBudgetOverviewSpec } from './bountyBudgetOverview/spec'
 import { submissionStatusSnapshotSpec } from './submissionStatusSnapshot/spec'
 import { rawApiExplorerSpec } from './rawApiExplorer/spec'
 import { intigrityPayoutHistorySpec } from './intigrityPayoutHistory/spec'
+import { intigrityQueueAgeSpec } from './intigrityQueueAge/spec'
 
 const BUILT_IN_SPECS: UserModuleSpec[] = [
   dailyTriageMovementSpec,
@@ -17,6 +18,7 @@ const BUILT_IN_SPECS: UserModuleSpec[] = [
   submissionStatusSnapshotSpec,
   rawApiExplorerSpec,
   intigrityPayoutHistorySpec,
+  intigrityQueueAgeSpec,
 ]
 
 function buildModules(ctx: AppContext): ReportModule[] {
