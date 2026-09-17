@@ -5,7 +5,7 @@ import { BC } from '../../themes/brandColors'
 export const dailyTriageMovementSpec: UserModuleSpec = {
   schemaVersion: 1,
   id: 'dailyTriageMovement',
-  title: 'Daily Triage Movement',
+  title: 'Intigriti Daily Triage Movement',
   description:
     'Shows submission flow in and out of triage for the selected program, date range, and time interval.',
   category: 'triage',
