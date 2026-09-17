@@ -126,3 +126,11 @@ The `plans/` folder contains design documents for future work (HackerOne, Bugcro
 - Cache files may contain sensitive vulnerability data. If encryption is enabled, files are AES-256-GCM encrypted before being written to disk.
 
 Full security model: [`app/README.md — Security model`](app/README.md#security-model)
+
+---
+
+## License
+
+Licensed under the **GNU Affero General Public License v3.0 only** (AGPL-3.0-only). See [`LICENSE`](LICENSE) for the full text.
+
+Because the AGPL covers use over a network, any modified version offered to users through a server must also make its complete corresponding source code available to those users (AGPL section 13).
