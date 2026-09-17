@@ -1,5 +1,5 @@
 import type { UserModuleSpec } from '../userModules/types'
-import submissionsSample from '../../fixtures/submissions.sample.json'
+import { sampleSubmissions } from '../dailyTriageMovement/fixtures'
 
 export const intigrityQueueAgeSpec: UserModuleSpec = {
   schemaVersion: 1,
@@ -103,6 +103,6 @@ export const intigrityQueueAgeSpec: UserModuleSpec = {
     return cards[0].value + ' reports in queue. Oldest is ' + cards[1].value + '. Average age is ' + cards[3].value + '.';
   `,
 
-  sampleFixtureData: submissionsSample,
+  sampleFixtureData: sampleSubmissions,
   sampleFixtureParams: { programIds: ['prog-alpha-001'] },
 }
