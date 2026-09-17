@@ -26,14 +26,14 @@ export const dailyTriageMovementSpec: UserModuleSpec = {
   allowedChartTypes: ['stackedBar', 'bar', 'line'],
   series: [
     { metricKey: 'new', color: BC.blue },
-    { metricKey: 'forwarded', color: BC.green },
+    { metricKey: 'pending', color: BC.green },
     { metricKey: 'closed', color: BC.grayMid },
     { metricKey: 'duplicate', color: BC.gold },
   ],
   tableColumns: [
     { key: 'period', label: 'Period' },
     { key: 'new', label: 'New' },
-    { key: 'forwarded', label: 'Forwarded' },
+    { key: 'pending', label: 'Pending' },
     { key: 'closed', label: 'Closed' },
     { key: 'duplicate', label: 'Duplicate' },
     { key: 'netChange', label: 'Net Change' },
@@ -71,10 +71,11 @@ export const dailyTriageMovementSpec: UserModuleSpec = {
       return buckets.map(function(bucket) {
         const inBucket = byBucket[bucket] || [];
         const newCount = inBucket.length;
-        const forwardedCount = inBucket.filter(function(s) { return s.state.status.value.toLowerCase().includes('forwarded'); }).length;
+        // Awaiting customer review: Intigriti calls this "Pending"; sample data uses "Forwarded to customer".
+        const pendingCount = inBucket.filter(function(s) { var v = s.state.status.value.toLowerCase(); return v === 'pending' || v.includes('forwarded'); }).length;
         const duplicateCount = inBucket.filter(function(s) { return (s.state.closeReason && s.state.closeReason.value.toLowerCase() === 'duplicate'); }).length;
         const closedCount = inBucket.filter(function(s) { return s.state.status.value.toLowerCase() === 'closed' && !(s.state.closeReason && s.state.closeReason.value.toLowerCase().includes('duplicate')); }).length;
-        return { period: bucket, new: newCount, forwarded: forwardedCount, closed: closedCount, duplicate: duplicateCount, netChange: newCount - closedCount - duplicateCount };
+        return { period: bucket, new: newCount, pending: pendingCount, closed: closedCount, duplicate: duplicateCount, netChange: newCount - closedCount - duplicateCount };
       });
     }
 
@@ -85,7 +86,7 @@ export const dailyTriageMovementSpec: UserModuleSpec = {
 
     const summaryCards = [
       { label: 'New Submissions', value: totalNew, trend: 'neutral' },
-      { label: 'Forwarded to Customer', value: rows.reduce(function(s, r) { return s + r.forwarded; }, 0), trend: 'neutral' },
+      { label: 'Pending (with customer)', value: rows.reduce(function(s, r) { return s + r.pending; }, 0), trend: 'neutral' },
       { label: 'Closed / Rejected', value: totalClosed, trend: 'neutral' },
       { label: 'Net Queue Change', value: netChange > 0 ? '+' + netChange : netChange, trend: netChange > 0 ? 'up' : netChange < 0 ? 'down' : 'neutral' },
     ];
