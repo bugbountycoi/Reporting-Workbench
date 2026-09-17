@@ -32,9 +32,9 @@ const SAMPLE_PROGRAM_DETAILS = [
   },
 ]
 
-export const intigrityQueueForecastSpec: UserModuleSpec = {
+export const intigritiQueueForecastSpec: UserModuleSpec = {
   schemaVersion: 1,
-  id: 'intigrityQueueForecast',
+  id: 'intigritiQueueForecast',
   title: 'Intigriti Queue Cost Forecast',
   description:
     'Estimates total payout cost for all queued unpaid reports using the program bounty tables configured in the platform (one lookup per program, matched on severity and "In Scope" tier). Formula: X reports × Y avg bounty × Z validity ratio = K estimated spend. Adjust the lookback period to see how recent trends shift Z and the historical fallback averages.',
@@ -60,7 +60,7 @@ export const intigrityQueueForecastSpec: UserModuleSpec = {
     { key: 'avgEstimate',  label: 'Est. Bounty (avg)' },
     { key: 'totalEstimate', label: 'Estimated Total' },
   ],
-  exportFilename: 'intgrity-queue-forecast',
+  exportFilename: 'intigriti-queue-forecast',
 
   customParamFields: [
     {
