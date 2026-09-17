@@ -40,7 +40,7 @@ export const intigritiQueueForecastSpec: UserModuleSpec = {
     'Estimates total payout cost for all queued unpaid reports using the program bounty tables configured in the platform (one lookup per program, matched on severity and "In Scope" tier). Formula: X reports × Y avg bounty × Z validity ratio = K estimated spend. Adjust the lookback period to see how recent trends shift Z and the historical fallback averages.',
   category: 'bounty',
   author: 'Reporting Workbench',
-  version: '1.2.0',
+  version: '1.3.0',
 
   dataSource: 'submissions',
   params: { includePrograms: true, includeDateRange: false, includeInterval: false },
@@ -81,7 +81,13 @@ export const intigritiQueueForecastSpec: UserModuleSpec = {
     if (ids.length === 0) throw new Error('At least one program is required');
     const results = await Promise.all(ids.map(function(id) { return ctx.getProgramSubmissions(id); }));
     const programDetails = await Promise.all(ids.map(function(id) { return ctx.getProgramDetail(id); }));
-    const submissions = results.flat();
+    // Deduplicate by code in case multiple program IDs share submissions.
+    const seen = new Set();
+    const submissions = results.flat().filter(function(s) {
+      if (seen.has(s.code)) return false;
+      seen.add(s.code);
+      return true;
+    });
 
     if (params.deepScan) {
       // Deep Scan: resolve per-submission domain tier for the queue items only.
@@ -89,7 +95,7 @@ export const intigritiQueueForecastSpec: UserModuleSpec = {
       const queue = submissions.filter(function(s) {
         const status = s.state.status.value;
         if (status === 'Closed') return false;
-        if (status === 'Accepted' && s.totalPayout != null) return false;
+        if (status === 'Accepted') return false;
         return true;
       });
       const detailResults = await Promise.all(queue.map(function(s) { return ctx.getSubmissionDetail(s.code); }));
@@ -117,11 +123,14 @@ export const intigritiQueueForecastSpec: UserModuleSpec = {
       ? submissions.filter(function(s) { return programIds.includes(s.originators.programId || ''); })
       : submissions;
 
-    // Queue: all unresolved reports (not closed, not accepted-with-payout already paid)
+    // Queue: reports not yet decided — excludes Closed (terminal) and Accepted (committed
+    // cost, no longer a forecast). Accepted reports are already approved for payment; they
+    // belong in a separate payment tracker, not a cost forecast.
+    // Includes: New, Triage, Forwarded to customer, Pending (awaiting researcher response).
     const queue = filtered.filter(function(s) {
       const status = s.state.status.value;
       if (status === 'Closed') return false;
-      if (status === 'Accepted' && s.totalPayout != null) return false;
+      if (status === 'Accepted') return false;
       return true;
     });
 
@@ -186,7 +195,7 @@ export const intigritiQueueForecastSpec: UserModuleSpec = {
     const DEFAULT_AVGS = { Informational: 0, Low: 200, Medium: 800, High: 2500, Critical: 8000 };
     const histStats = {};
     for (const s of filtered) {
-      if (s.createdAt >= cutoffTs && s.totalPayout && s.state.status.value === 'Accepted') {
+      if (s.createdAt >= cutoffTs && s.totalPayout && s.totalPayout.value > 0 && s.state.status.value === 'Accepted') {
         const sev = s.severity.value;
         if (!histStats[sev]) histStats[sev] = { count: 0, total: 0 };
         histStats[sev].count++;
@@ -260,8 +269,10 @@ export const intigritiQueueForecastSpec: UserModuleSpec = {
     }
 
     // ── Validity ratio over the selected period ─────────────────────────────
+    // recentPaid requires value > 0 so that $0-payout records on rejected/closed
+    // submissions (which Intigriti may set to non-null) are not counted as "paid".
     const recent = filtered.filter(function(s) { return s.createdAt >= cutoffTs; });
-    const recentPaid = recent.filter(function(s) { return s.totalPayout != null; });
+    const recentPaid = recent.filter(function(s) { return s.totalPayout != null && s.totalPayout.value > 0; });
     const validityRatio = recent.length > 0 ? recentPaid.length / recent.length : 0;
 
     // ── Aggregated output ───────────────────────────────────────────────────
@@ -286,7 +297,7 @@ export const intigritiQueueForecastSpec: UserModuleSpec = {
       {
         label: 'Queue Total (X)',
         value: totalQueueCount + ' reports',
-        subValue: 'New + Triage + Pending payment',
+        subValue: 'New + Triage + Forwarded + Pending',
       },
       {
         label: 'Validity Ratio (Z)',
