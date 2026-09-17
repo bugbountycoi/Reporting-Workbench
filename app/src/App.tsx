@@ -227,6 +227,10 @@ export default function App() {
     }
   }
 
+  const handleModuleAction = async (actionId: string, params: ReportParams) => {
+    await handleGenerateReport({ ...params, [actionId]: actionId })
+  }
+
   const handleParamsChange = useCallback((reportId: string, params: ReportParams) => {
     setModuleParamsCache((c) => ({ ...c, [reportId]: params }))
   }, [])
@@ -642,6 +646,7 @@ export default function App() {
                       loading={loading}
                       initialParams={moduleParamsCache[selectedReport.id]}
                       onParamsChange={(p) => handleParamsChange(selectedReport.id, p)}
+                      onAction={handleModuleAction}
                     />
                   </div>
 

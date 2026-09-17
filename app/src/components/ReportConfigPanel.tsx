@@ -10,6 +10,7 @@ interface Props {
   loading: boolean
   initialParams?: ReportParams
   onParamsChange?: (params: ReportParams) => void
+  onAction?: (actionId: string, params: ReportParams) => void
 }
 
 function today() {
@@ -49,7 +50,7 @@ const DATE_SHORTCUTS: { label: string; start: () => string; end: () => string }[
   { label: 'All time', start: () => '2015-01-01', end: today },
 ]
 
-export function ReportConfigPanel({ report, programs, onGenerate, loading, initialParams, onParamsChange }: Props) {
+export function ReportConfigPanel({ report, programs, onGenerate, loading, initialParams, onParamsChange, onAction }: Props) {
   const hasProgramSelect = report.paramFields.some((f) => f.type === 'programSelect')
 
   const [params, setParams] = useState<ReportParams>(() => {
@@ -223,7 +224,7 @@ export function ReportConfigPanel({ report, programs, onGenerate, loading, initi
         </div>
       )}
 
-      <div>
+      <div className="flex flex-wrap gap-3 items-center">
         <button
           onClick={() => onGenerate(params)}
           disabled={!canGenerate || loading}
@@ -231,6 +232,22 @@ export function ReportConfigPanel({ report, programs, onGenerate, loading, initi
         >
           {loading ? 'Generating…' : 'Generate Report'}
         </button>
+
+        {report.customActions?.map((action) => (
+          <button
+            key={action.id}
+            onClick={() => {
+              const msg = action.warningMessage ?? `"${action.label}" will make additional API calls and may be slow. Continue?`
+              if (!window.confirm(msg)) return
+              onAction?.(action.id, params)
+            }}
+            disabled={!canGenerate || loading}
+            title={action.description}
+            className="px-5 py-2 bg-amber-600 text-white rounded-lg text-sm font-semibold hover:bg-amber-700 disabled:opacity-50 transition-colors whitespace-nowrap"
+          >
+            {loading ? 'Running…' : action.label}
+          </button>
+        ))}
       </div>
     </div>
   )
