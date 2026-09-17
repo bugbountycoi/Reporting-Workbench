@@ -95,7 +95,7 @@ export const intigritiQueueForecastSpec: UserModuleSpec = {
       const queue = submissions.filter(function(s) {
         const status = s.state.status.value;
         if (status === 'Closed') return false;
-        if (status === 'Accepted') return false;
+        if (status === 'Accepted' && s.totalPayout != null && s.totalPayout.value > 0) return false;
         return true;
       });
       const detailResults = await Promise.all(queue.map(function(s) { return ctx.getSubmissionDetail(s.code); }));
@@ -123,14 +123,14 @@ export const intigritiQueueForecastSpec: UserModuleSpec = {
       ? submissions.filter(function(s) { return programIds.includes(s.originators.programId || ''); })
       : submissions;
 
-    // Queue: reports not yet decided — excludes Closed (terminal) and Accepted (committed
-    // cost, no longer a forecast). Accepted reports are already approved for payment; they
-    // belong in a separate payment tracker, not a cost forecast.
-    // Includes: New, Triage, Forwarded to customer, Pending (awaiting researcher response).
+    // Queue: all unpaid reports. Null totalPayout is treated the same as value 0 (not paid).
+    // Excludes: Closed (terminal), Accepted with a confirmed payout (value > 0).
+    // Includes: New, Triage, Forwarded, Pending, and Accepted where payment is still pending
+    // (totalPayout is null or value === 0).
     const queue = filtered.filter(function(s) {
       const status = s.state.status.value;
       if (status === 'Closed') return false;
-      if (status === 'Accepted') return false;
+      if (status === 'Accepted' && s.totalPayout != null && s.totalPayout.value > 0) return false;
       return true;
     });
 
@@ -297,7 +297,7 @@ export const intigritiQueueForecastSpec: UserModuleSpec = {
       {
         label: 'Queue Total (X)',
         value: totalQueueCount + ' reports',
-        subValue: 'New + Triage + Forwarded + Pending',
+        subValue: 'New + Triage + Forwarded + Accepted (unpaid)',
       },
       {
         label: 'Validity Ratio (Z)',
