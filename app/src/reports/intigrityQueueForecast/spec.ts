@@ -8,15 +8,39 @@ const PERIOD_OPTIONS = [
   { value: '12', label: '12 months' },
 ]
 
+// Realistic sample bounty table used for the preview in mock/fixture mode.
+// In live mode this data comes from ctx.getProgramDetail().
+const SAMPLE_PROGRAM_DETAILS = [
+  {
+    id: 'prog-alpha-001',
+    bounties: [
+      {
+        tier: 'In Scope',
+        bounty: {
+          low:      { value: 150,  currency: 'USD' },
+          medium:   { value: 500,  currency: 'USD' },
+          high:     { value: 1500, currency: 'USD' },
+          critical: { value: 5000, currency: 'USD' },
+          exceptional: null,
+        },
+      },
+      {
+        tier: 'Out of Scope',
+        bounty: { low: null, medium: null, high: null, critical: null, exceptional: null },
+      },
+    ],
+  },
+]
+
 export const intigrityQueueForecastSpec: UserModuleSpec = {
   schemaVersion: 1,
   id: 'intigrityQueueForecast',
   title: 'Intigriti Queue Cost Forecast',
   description:
-    'Estimates total payout cost for all queued unpaid reports using historical severity-based averages and validity ratio. Formula: X reports × Y avg cost × Z validity ratio = K estimated spend. Adjust the lookback period to see how recent trends shift the estimate.',
+    'Estimates total payout cost for all queued unpaid reports using the program bounty tables configured in the platform (one lookup per program, matched on severity and "In Scope" tier). Formula: X reports × Y avg bounty × Z validity ratio = K estimated spend. Adjust the lookback period to see how recent trends shift Z and the historical fallback averages.',
   category: 'bounty',
   author: 'Reporting Workbench',
-  version: '1.0.0',
+  version: '1.1.0',
 
   dataSource: 'submissions',
   params: { includePrograms: true, includeDateRange: false, includeInterval: false },
@@ -31,10 +55,10 @@ export const intigrityQueueForecastSpec: UserModuleSpec = {
   allowedChartTypes: ['bar'],
   series: [{ metricKey: 'estimate', color: 'var(--brand-red)' }],
   tableColumns: [
-    { key: 'severity', label: 'Severity' },
-    { key: 'queueCount', label: 'In Queue' },
-    { key: 'histAvg', label: 'Historical Avg Payout' },
-    { key: 'estimate', label: 'Estimated Total' },
+    { key: 'severity',      label: 'Severity' },
+    { key: 'queueCount',   label: 'In Queue' },
+    { key: 'avgEstimate',  label: 'Est. Bounty (avg)' },
+    { key: 'totalEstimate', label: 'Estimated Total' },
   ],
   exportFilename: 'intgrity-queue-forecast',
 
@@ -49,15 +73,20 @@ export const intigrityQueueForecastSpec: UserModuleSpec = {
     },
   ],
 
+  // Fetch all submissions for selected programs PLUS program details (for bounty tables).
+  // Both arrays are indexed in parallel by params.programIds position.
   customFetchData: `
     const ids = params.programIds || [];
     if (ids.length === 0) throw new Error('At least one program is required');
     const results = await Promise.all(ids.map(function(id) { return ctx.getProgramSubmissions(id); }));
-    return results.flat();
+    const programDetails = await Promise.all(ids.map(function(id) { return ctx.getProgramDetail(id); }));
+    return { submissions: results.flat(), programDetails: programDetails };
   `,
 
   customTransform: `
-    const submissions = raw;
+    const rawData = raw;
+    const submissions = rawData.submissions || raw;
+    const programDetails = rawData.programDetails || [];
     const programIds = params.programIds || [];
     const period = parseInt(params.period || '12', 10);
     const cutoffTs = (Date.now() / 1000) - (period * 30 * 24 * 3600);
@@ -66,7 +95,7 @@ export const intigrityQueueForecastSpec: UserModuleSpec = {
       ? submissions.filter(function(s) { return programIds.includes(s.originators.programId || ''); })
       : submissions;
 
-    // Queue: all unresolved reports (not closed, not accepted-and-paid)
+    // Queue: all unresolved reports (not closed, not accepted-with-payout already paid)
     const queue = filtered.filter(function(s) {
       const status = s.state.status.value;
       if (status === 'Closed') return false;
@@ -74,16 +103,46 @@ export const intigrityQueueForecastSpec: UserModuleSpec = {
       return true;
     });
 
-    // Validity ratio over the selected period: (paid submissions) / (all submitted)
-    const recent = filtered.filter(function(s) { return s.createdAt >= cutoffTs; });
-    const recentPaid = recent.filter(function(s) { return s.totalPayout != null; });
-    const validityRatio = recent.length > 0 ? recentPaid.length / recent.length : 0;
+    // ── Bounty table lookup ─────────────────────────────────────────────────
+    // Build a per-program map: programId → { Informational, Low, Medium, High, Critical, currency }
+    // Source: getProgramDetail().bounties[], preferring the "In Scope" tier.
+    // Reports in the queue should all be in-scope (otherwise they would have been closed).
+    const programBountyMap = {};
+    for (let i = 0; i < programIds.length; i++) {
+      const progId = programIds[i];
+      const detail = programDetails[i];
+      if (!detail || !detail.bounties || detail.bounties.length === 0) continue;
 
-    // Historical avg payout per severity: use accepted-paid submissions from within period
-    // Fallback values apply when no historical data exists for a severity level in this window
+      // Prefer any tier whose name contains "scope" but not "out".
+      // Fall back to the first tier that has at least one non-null bounty value.
+      const inScopeTier = detail.bounties.find(function(b) {
+        const t = (b.tier || '').toLowerCase();
+        return t.includes('scope') && !t.includes('out');
+      });
+      const fallbackTier = detail.bounties.find(function(b) {
+        const br = b.bounty || {};
+        return br.low || br.medium || br.high || br.critical;
+      });
+      const tier = inScopeTier || fallbackTier;
+      if (!tier || !tier.bounty) continue;
+
+      const br = tier.bounty;
+      const currencySource = br.critical || br.high || br.medium || br.low;
+      programBountyMap[progId] = {
+        Informational: 0,
+        Low:      br.low      ? br.low.value      : null,
+        Medium:   br.medium   ? br.medium.value   : null,
+        High:     br.high     ? br.high.value      : null,
+        Critical: br.critical ? br.critical.value : null,
+        currency: currencySource ? currencySource.currency : 'USD',
+        tierName: tier.tier,
+      };
+    }
+    const hasBountyTables = Object.keys(programBountyMap).length > 0;
+
+    // ── Historical fallback (when bounty table is unavailable for a program/severity) ──
+    // Defaults apply only if there is no historical data either.
     const DEFAULT_AVGS = { Informational: 0, Low: 200, Medium: 800, High: 2500, Critical: 8000 };
-    const SEVERITY_ORDER = ['Informational', 'Low', 'Medium', 'High', 'Critical'];
-
     const histStats = {};
     for (const s of filtered) {
       if (s.createdAt >= cutoffTs && s.totalPayout && s.state.status.value === 'Accepted') {
@@ -94,36 +153,67 @@ export const intigrityQueueForecastSpec: UserModuleSpec = {
       }
     }
 
-    const firstPaid = recentPaid[0];
-    const currency = (firstPaid && firstPaid.totalPayout && firstPaid.totalPayout.currency) || 'USD';
+    // ── Per-submission estimate ─────────────────────────────────────────────
+    // Priority: (1) bounty table for that submission's program, (2) historical avg, (3) default
+    var overallCurrency = 'USD';
+    for (const k of Object.keys(programBountyMap)) {
+      if (programBountyMap[k].currency) { overallCurrency = programBountyMap[k].currency; break; }
+    }
+    if (!hasBountyTables) {
+      const firstPaid = filtered.find(function(s) { return s.totalPayout != null; });
+      if (firstPaid && firstPaid.totalPayout) overallCurrency = firstPaid.totalPayout.currency;
+    }
 
-    let totalRawEstimate = 0;
-    let totalWeightedCost = 0;
+    const SEVERITY_ORDER = ['Informational', 'Low', 'Medium', 'High', 'Critical'];
+    const sevAccum = {};
+    for (const sev of SEVERITY_ORDER) {
+      sevAccum[sev] = { count: 0, totalEstimate: 0, fromTableCount: 0 };
+    }
 
-    const sevRows = SEVERITY_ORDER.map(function(sev) {
-      const queueCount = queue.filter(function(s) { return s.severity.value === sev; }).length;
-      const stats = histStats[sev] || { count: 0, total: 0 };
-      const histAvg = stats.count > 0
-        ? Math.round(stats.total / stats.count)
-        : (DEFAULT_AVGS[sev] || 0);
-      const rawEstimate = queueCount * histAvg;
-      totalRawEstimate += rawEstimate;
-      totalWeightedCost += histAvg * queueCount;
-      return {
-        severity: sev,
-        queueCount: queueCount,
-        histAvg: currency + ' ' + histAvg.toLocaleString(),
-        estimate: currency + ' ' + rawEstimate.toLocaleString(),
-        estimateNum: rawEstimate,
-        histAvgNum: histAvg,
-        hasHistoricalData: stats.count > 0,
-      };
-    });
+    var grandTotal = 0;
+    for (const s of queue) {
+      const sev = s.severity.value;
+      if (!sevAccum[sev]) continue;
 
+      const progId = s.originators.programId || '';
+      const table = programBountyMap[progId];
+      let estimateVal = null;
+      let fromTable = false;
+
+      if (table && table[sev] != null) {
+        estimateVal = table[sev];
+        fromTable = true;
+      } else {
+        const hs = histStats[sev];
+        estimateVal = hs && hs.count > 0
+          ? Math.round(hs.total / hs.count)
+          : (DEFAULT_AVGS[sev] || 0);
+      }
+
+      sevAccum[sev].count++;
+      sevAccum[sev].totalEstimate += estimateVal;
+      if (fromTable) sevAccum[sev].fromTableCount++;
+      grandTotal += estimateVal;
+    }
+
+    // ── Validity ratio over the selected period ─────────────────────────────
+    const recent = filtered.filter(function(s) { return s.createdAt >= cutoffTs; });
+    const recentPaid = recent.filter(function(s) { return s.totalPayout != null; });
+    const validityRatio = recent.length > 0 ? recentPaid.length / recent.length : 0;
+
+    // ── Aggregated output ───────────────────────────────────────────────────
     const totalQueueCount = queue.length;
-    const avgCostPerReport = totalQueueCount > 0 ? Math.round(totalWeightedCost / totalQueueCount) : 0;
-    // K = X × Y × Z
-    const forecastK = Math.round(totalRawEstimate * validityRatio);
+    const avgCostPerReport = totalQueueCount > 0 ? Math.round(grandTotal / totalQueueCount) : 0;
+    const forecastK = Math.round(grandTotal * validityRatio);
+
+    const totalFromTableCount = SEVERITY_ORDER.reduce(function(s, sev) {
+      return s + sevAccum[sev].fromTableCount;
+    }, 0);
+    const sourceNote = hasBountyTables
+      ? (totalFromTableCount === totalQueueCount
+          ? 'from program bounty tables'
+          : 'mixed: bounty tables + historical fallback')
+      : 'from historical payouts (no bounty table data)';
 
     const summaryCards = [
       {
@@ -138,24 +228,40 @@ export const intigrityQueueForecastSpec: UserModuleSpec = {
       },
       {
         label: 'Avg Cost / Report (Y)',
-        value: currency + ' ' + avgCostPerReport.toLocaleString(),
-        subValue: 'Severity-weighted, ' + period + '-month history',
+        value: overallCurrency + ' ' + avgCostPerReport.toLocaleString(),
+        subValue: sourceNote,
       },
       {
         label: 'Estimated Total (K)',
-        value: currency + ' ' + forecastK.toLocaleString(),
+        value: overallCurrency + ' ' + forecastK.toLocaleString(),
         subValue: 'X × Y × Z',
       },
     ];
 
+    const sevRows = SEVERITY_ORDER.map(function(sev) {
+      const d = sevAccum[sev];
+      const avgEst = d.count > 0 ? Math.round(d.totalEstimate / d.count) : 0;
+      const fromTable = d.fromTableCount > 0 && d.fromTableCount === d.count;
+      const partial = d.fromTableCount > 0 && d.fromTableCount < d.count;
+      const suffix = fromTable ? '' : (partial ? ' ✱' : ' ✱');
+      return {
+        severity: sev,
+        queueCount: d.count,
+        avgEstimate: overallCurrency + ' ' + avgEst.toLocaleString() + suffix,
+        totalEstimate: overallCurrency + ' ' + Math.round(d.totalEstimate).toLocaleString(),
+        estimateNum: Math.round(d.totalEstimate),
+        avgEstimateNum: avgEst,
+      };
+    });
+
     const chartData = sevRows
       .filter(function(r) { return r.queueCount > 0; })
       .map(function(r) {
-        return { severity: r.severity, count: r.queueCount, estimate: r.estimateNum, histAvg: r.histAvgNum };
+        return { severity: r.severity, count: r.queueCount, estimate: r.estimateNum, avgEst: r.avgEstimateNum };
       });
 
     const dynamicChartConfig = {
-      type: 'bar', xKey: 'severity', xLabel: 'Severity', yLabel: currency + ' Estimated Cost',
+      type: 'bar', xKey: 'severity', xLabel: 'Severity', yLabel: overallCurrency + ' Estimated Cost',
       allowedChartTypes: ['bar'],
       series: [{ key: 'estimate', label: 'Estimated Cost', color: 'var(--brand-red)' }],
     };
@@ -164,8 +270,8 @@ export const intigrityQueueForecastSpec: UserModuleSpec = {
       return {
         severity: r.severity,
         queueCount: r.queueCount,
-        histAvg: r.hasHistoricalData ? r.histAvg : r.histAvg + ' ✱',
-        estimate: r.estimate,
+        avgEstimate: r.avgEstimate,
+        totalEstimate: r.totalEstimate,
       };
     });
 
@@ -183,6 +289,13 @@ export const intigrityQueueForecastSpec: UserModuleSpec = {
     return 'Forecast: ' + cards[3].value + ' to pay all queued reports (' + cards[0].value + ' at ' + cards[2].value + ' avg, ' + cards[1].value + ' validity). Formula: X × Y × Z = K.';
   `,
 
-  sampleFixtureData: submissionsSample,
+  // sampleFixtureData mirrors the shape that customFetchData returns:
+  // { submissions: [...], programDetails: [...] }
+  // programDetails includes a realistic bounty table so the sample preview
+  // demonstrates the bounty-table lookup path, not just the historical fallback.
+  sampleFixtureData: {
+    submissions: submissionsSample,
+    programDetails: SAMPLE_PROGRAM_DETAILS,
+  },
   sampleFixtureParams: { programIds: ['prog-alpha-001'], period: '12' },
 }
