@@ -42,7 +42,7 @@ const TRANSFORM_CTX: TransformCtx = {
 // API proxy — routes ctx.* calls back to the main thread
 // ---------------------------------------------------------------------------
 
-type AllowedMethod = 'getProgramSubmissions' | 'getAllPayouts' | 'getProgramDetail'
+type AllowedMethod = 'getProgramSubmissions' | 'getAllPayouts' | 'getProgramDetail' | 'getSubmissionDetail'
 
 const pendingApiRequests = new Map<string, {
   resolve: (value: unknown) => void
@@ -63,6 +63,7 @@ const FETCH_CTX = {
   getProgramSubmissions: (id: string) => apiProxy('getProgramSubmissions', [id]),
   getAllPayouts: () => apiProxy('getAllPayouts', []),
   getProgramDetail: (id: string) => apiProxy('getProgramDetail', [id]),
+  getSubmissionDetail: (code: string) => apiProxy('getSubmissionDetail', [code]),
 }
 
 // ---------------------------------------------------------------------------

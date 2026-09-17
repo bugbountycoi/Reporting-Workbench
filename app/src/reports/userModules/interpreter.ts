@@ -9,6 +9,7 @@ import { declarativeTransform } from './transform'
 import { getProgramSubmissions } from '../../api/endpoints/programs'
 import { getAllPayouts } from '../../api/endpoints/payouts'
 import { getProgramDetail } from '../../api/endpoints/programs'
+import { getSubmissionDetail } from '../../api/endpoints/submissions'
 import { INTERVAL_OPTIONS } from '../../utils/intervals'
 import type { ProgramOverviewViewModel } from '../../api/types'
 
@@ -96,6 +97,8 @@ async function handleApiProxy(method: string, args: unknown[]): Promise<unknown>
       return getAllPayouts()
     case 'getProgramDetail':
       return getProgramDetail(args[0] as string)
+    case 'getSubmissionDetail':
+      return getSubmissionDetail(args[0] as string)
     default:
       throw new Error(`Custom module called disallowed API method: ${method}`)
   }
