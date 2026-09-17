@@ -40,7 +40,7 @@ export const intigrityQueueForecastSpec: UserModuleSpec = {
     'Estimates total payout cost for all queued unpaid reports using the program bounty tables configured in the platform (one lookup per program, matched on severity and "In Scope" tier). Formula: X reports × Y avg bounty × Z validity ratio = K estimated spend. Adjust the lookback period to see how recent trends shift Z and the historical fallback averages.',
   category: 'bounty',
   author: 'Reporting Workbench',
-  version: '1.1.0',
+  version: '1.2.0',
 
   dataSource: 'submissions',
   params: { includePrograms: true, includeDateRange: false, includeInterval: false },
@@ -73,20 +73,42 @@ export const intigrityQueueForecastSpec: UserModuleSpec = {
     },
   ],
 
-  // Fetch all submissions for selected programs PLUS program details (for bounty tables).
-  // Both arrays are indexed in parallel by params.programIds position.
+  // Fetch submissions + program bounty tables.
+  // When params.deepScan is set, also fetches individual submission detail for
+  // each queued report to get the exact domain tier — one API call per queued report.
   customFetchData: `
     const ids = params.programIds || [];
     if (ids.length === 0) throw new Error('At least one program is required');
     const results = await Promise.all(ids.map(function(id) { return ctx.getProgramSubmissions(id); }));
     const programDetails = await Promise.all(ids.map(function(id) { return ctx.getProgramDetail(id); }));
-    return { submissions: results.flat(), programDetails: programDetails };
+    const submissions = results.flat();
+
+    if (params.deepScan) {
+      // Deep Scan: resolve per-submission domain tier for the queue items only.
+      // This is O(N) API calls where N = queue size — potentially expensive.
+      const queue = submissions.filter(function(s) {
+        const status = s.state.status.value;
+        if (status === 'Closed') return false;
+        if (status === 'Accepted' && s.totalPayout != null) return false;
+        return true;
+      });
+      const detailResults = await Promise.all(queue.map(function(s) { return ctx.getSubmissionDetail(s.code); }));
+      const submissionDetails = {};
+      for (var i = 0; i < queue.length; i++) {
+        submissionDetails[queue[i].code] = detailResults[i];
+      }
+      return { submissions: submissions, programDetails: programDetails, submissionDetails: submissionDetails };
+    }
+
+    return { submissions: submissions, programDetails: programDetails };
   `,
 
   customTransform: `
     const rawData = raw;
     const submissions = rawData.submissions || raw;
     const programDetails = rawData.programDetails || [];
+    const submissionDetails = rawData.submissionDetails || null;
+    const isDeepScan = submissionDetails !== null;
     const programIds = params.programIds || [];
     const period = parseInt(params.period || '12', 10);
     const cutoffTs = (Date.now() / 1000) - (period * 30 * 24 * 3600);
@@ -108,10 +130,29 @@ export const intigrityQueueForecastSpec: UserModuleSpec = {
     // Source: getProgramDetail().bounties[], preferring the "In Scope" tier.
     // Reports in the queue should all be in-scope (otherwise they would have been closed).
     const programBountyMap = {};
+    // Also build a full tier→severity map for deep scan per-submission tier lookup.
+    // Structure: programId → { tierName → { Low, Medium, High, Critical, currency } }
+    const programFullBountyMap = {};
     for (let i = 0; i < programIds.length; i++) {
       const progId = programIds[i];
       const detail = programDetails[i];
       if (!detail || !detail.bounties || detail.bounties.length === 0) continue;
+
+      // Build the full map (all tiers)
+      const fullTiers = {};
+      for (const bv of detail.bounties) {
+        const br = bv.bounty || {};
+        const currSrc = br.critical || br.high || br.medium || br.low;
+        fullTiers[bv.tier] = {
+          Informational: 0,
+          Low:      br.low      ? br.low.value      : null,
+          Medium:   br.medium   ? br.medium.value   : null,
+          High:     br.high     ? br.high.value      : null,
+          Critical: br.critical ? br.critical.value : null,
+          currency: currSrc ? currSrc.currency : 'USD',
+        };
+      }
+      programFullBountyMap[progId] = fullTiers;
 
       // Prefer any tier whose name contains "scope" but not "out".
       // Fall back to the first tier that has at least one non-null bounty value.
@@ -176,14 +217,36 @@ export const intigrityQueueForecastSpec: UserModuleSpec = {
       if (!sevAccum[sev]) continue;
 
       const progId = s.originators.programId || '';
-      const table = programBountyMap[progId];
       let estimateVal = null;
       let fromTable = false;
 
-      if (table && table[sev] != null) {
-        estimateVal = table[sev];
-        fromTable = true;
-      } else {
+      if (isDeepScan) {
+        // Deep Scan: look up the exact domain tier for this submission
+        const detail = submissionDetails[s.code];
+        const domainTier = detail && detail.report && detail.report.domain
+          ? detail.report.domain.tier
+          : null;
+        const progTiers = programFullBountyMap[progId];
+        if (domainTier && progTiers && progTiers[domainTier]) {
+          const tierEntry = progTiers[domainTier];
+          if (tierEntry[sev] != null) {
+            estimateVal = tierEntry[sev];
+            fromTable = true;
+          }
+        }
+      }
+
+      // Fallback: program-level "In Scope" tier
+      if (estimateVal === null) {
+        const table = programBountyMap[progId];
+        if (table && table[sev] != null) {
+          estimateVal = table[sev];
+          fromTable = true;
+        }
+      }
+
+      // Final fallback: historical average or default
+      if (estimateVal === null) {
         const hs = histStats[sev];
         estimateVal = hs && hs.count > 0
           ? Math.round(hs.total / hs.count)
@@ -209,11 +272,15 @@ export const intigrityQueueForecastSpec: UserModuleSpec = {
     const totalFromTableCount = SEVERITY_ORDER.reduce(function(s, sev) {
       return s + sevAccum[sev].fromTableCount;
     }, 0);
-    const sourceNote = hasBountyTables
+    const sourceNote = isDeepScan
       ? (totalFromTableCount === totalQueueCount
-          ? 'from program bounty tables'
-          : 'mixed: bounty tables + historical fallback')
-      : 'from historical payouts (no bounty table data)';
+          ? 'Deep Scan: per-submission domain tier'
+          : 'Deep Scan: per-submission tier + fallback')
+      : (hasBountyTables
+          ? (totalFromTableCount === totalQueueCount
+              ? 'from program bounty tables'
+              : 'mixed: bounty tables + historical fallback')
+          : 'from historical payouts (no bounty table data)');
 
     const summaryCards = [
       {
@@ -288,6 +355,16 @@ export const intigrityQueueForecastSpec: UserModuleSpec = {
     const cards = data.summaryCards;
     return 'Forecast: ' + cards[3].value + ' to pay all queued reports (' + cards[0].value + ' at ' + cards[2].value + ' avg, ' + cards[1].value + ' validity). Formula: X × Y × Z = K.';
   `,
+
+  customActions: [
+    {
+      id: 'deepScan',
+      label: 'Deep Scan',
+      description: 'Fetch the individual submission detail for every queued report to resolve its exact asset tier, then re-run the forecast with those precise bounty values.',
+      warningMessage:
+        'Deep Scan makes one API call per queued report and can be slow for large queues.\n\nIt resolves the exact domain/asset tier for each submission, giving the most accurate estimate.\n\nContinue?',
+    },
+  ],
 
   // sampleFixtureData mirrors the shape that customFetchData returns:
   // { submissions: [...], programDetails: [...] }
