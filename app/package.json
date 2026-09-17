@@ -2,6 +2,7 @@
   "name": "reporting-workbench",
   "private": true,
   "version": "0.3.6",
+  "license": "AGPL-3.0-only",
   "type": "module",
   "scripts": {
     "dev": "vite",
