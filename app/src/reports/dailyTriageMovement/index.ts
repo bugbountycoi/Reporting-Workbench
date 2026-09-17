@@ -7,7 +7,7 @@ import { BC, BRAND_COMPARE_COLORS } from '../../themes/brandColors'
 
 const CHART_COLORS = {
   new: BC.blue,
-  forwarded: BC.green,
+  pending: BC.green,
   closed: BC.grayMid,
   duplicate: BC.gold,
 }
@@ -30,9 +30,11 @@ function buildRows(
   return buckets.map((bucket) => {
     const inBucket = byBucket.get(bucket) ?? []
     const newCount = inBucket.length
-    const forwardedCount = inBucket.filter((s) =>
-      s.state.status.value.toLowerCase().includes('forwarded'),
-    ).length
+    // Awaiting customer review: Intigriti calls this "Pending"; sample data uses "Forwarded to customer".
+    const pendingCount = inBucket.filter((s) => {
+      const v = s.state.status.value.toLowerCase()
+      return v === 'pending' || v.includes('forwarded')
+    }).length
     const duplicateCount = inBucket.filter(
       (s) => s.state.closeReason?.value.toLowerCase() === 'duplicate',
     ).length
@@ -45,7 +47,7 @@ function buildRows(
     return {
       period: bucket,
       new: newCount,
-      forwarded: forwardedCount,
+      pending: pendingCount,
       closed: closedCount,
       duplicate: duplicateCount,
       netChange: newCount - closedCount - duplicateCount,
@@ -75,8 +77,8 @@ function transformData(raw: unknown, params: ReportParams): ReportData {
   const summaryCards = [
     { label: 'New Submissions', value: totalNew, trend: 'neutral' as const },
     {
-      label: 'Forwarded to Customer',
-      value: rows.reduce((s, r) => s + (r.forwarded as number), 0),
+      label: 'Pending (with customer)',
+      value: rows.reduce((s, r) => s + (r.pending as number), 0),
       trend: 'neutral' as const,
     },
     { label: 'Closed / Rejected', value: totalClosed, trend: 'neutral' as const },
@@ -180,7 +182,7 @@ export const dailyTriageMovement: ReportModule = {
   tableColumns: [
     { accessorKey: 'period', header: 'Period' },
     { accessorKey: 'new', header: 'New' },
-    { accessorKey: 'forwarded', header: 'Forwarded' },
+    { accessorKey: 'pending', header: 'Pending' },
     { accessorKey: 'closed', header: 'Closed' },
     { accessorKey: 'duplicate', header: 'Duplicate' },
     { accessorKey: 'netChange', header: 'Net Change' },
@@ -194,7 +196,7 @@ export const dailyTriageMovement: ReportModule = {
     allowedChartTypes: ['stackedBar', 'bar', 'line'],
     series: [
       { key: 'new', label: 'New', color: CHART_COLORS.new },
-      { key: 'forwarded', label: 'Forwarded', color: CHART_COLORS.forwarded },
+      { key: 'pending', label: 'Pending', color: CHART_COLORS.pending },
       { key: 'closed', label: 'Closed', color: CHART_COLORS.closed },
       { key: 'duplicate', label: 'Duplicate', color: CHART_COLORS.duplicate },
     ],
